@@ -1,0 +1,2497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkyLock — GPS-Based 2.4 GHz Articulating High-Gain Antenna System for UAVs</title>
+  <style>
+    :root {
+      --bg: #070b12;
+      --panel: rgba(10, 15, 24, 0.86);
+      --border: rgba(148, 163, 184, 0.18);
+      --text: #e6edf3;
+      --muted: #8b9bb0;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #canvas-wrap {
+      position: fixed;
+      inset: 0;
+    }
+
+    /* Top-left Product Identity & View Bar */
+    .top-bar {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      right: 374px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .brand-card {
+      pointer-events: auto;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+      max-width: 500px;
+    }
+
+    .brand-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 2px;
+    }
+
+    .brand-title {
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.01em;
+    }
+
+    .brand-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+
+    .view-bar {
+      pointer-events: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 6px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+    }
+
+    .chip-btn {
+      font-family: var(--sans);
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 7px;
+      padding: 5px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .chip-btn:hover {
+      color: var(--text);
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .chip-btn.active {
+      color: #7dd3fc;
+      background: rgba(56, 189, 248, 0.16);
+      border-color: rgba(56, 189, 248, 0.5);
+    }
+
+    /* Bottom-left Architecture / Component Inspector Drawer */
+    .arch-bar {
+      position: fixed;
+      bottom: 14px;
+      left: 14px;
+      right: 374px;
+      pointer-events: none;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .arch-card {
+      pointer-events: auto;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 9px 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+      width: 100%;
+      max-width: 780px;
+    }
+
+    .arch-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+    }
+
+    .hw-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 6px;
+    }
+
+    .hw-node {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 7px;
+      padding: 6px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .hw-node:hover,
+    .hw-node.selected {
+      border-color: rgba(56, 189, 248, 0.55);
+      background: rgba(56, 189, 248, 0.11);
+    }
+
+    .hw-name {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+    }
+
+    .hw-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--good);
+      display: inline-block;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px var(--good);
+    }
+
+    .hw-sub {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* 3D Component Callout Labels Overlay */
+    #labels-layer {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .callout {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      background: rgba(9, 14, 23, 0.88);
+      border: 1px solid rgba(56, 189, 248, 0.42);
+      border-radius: 6px;
+      padding: 3px 7px;
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #e2e8f0;
+      white-space: nowrap;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .callout:hover,
+    .callout.active {
+      background: rgba(14, 36, 58, 0.96);
+      border-color: #38bdf8;
+      color: #7dd3fc;
+      z-index: 8;
+    }
+
+    .callout .c-sub {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-left: 5px;
+    }
+
+    .callout::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -5px;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
+    }
+
+    /* Right Live Telemetry & Control Panel */
+    .panel {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      width: 348px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 15px;
+      box-shadow: 0 18px 42px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .title {
+      font-size: 14.5px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      font-size: 10.5px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      border: 1px solid transparent;
+    }
+
+    .badge.tracking {
+      color: #86efac;
+      background: rgba(34, 197, 94, 0.14);
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .badge.coasting {
+      color: #fde68a;
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .badge.lost {
+      color: #fca5a5;
+      background: rgba(239, 68, 68, 0.16);
+      border-color: rgba(239, 68, 68, 0.42);
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .control-title {
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .btn-toggle {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .btn-toggle.on {
+      background: rgba(56, 189, 248, 0.16);
+      border-color: rgba(56, 189, 248, 0.5);
+      color: #7dd3fc;
+    }
+
+    .btn-toggle.off {
+      background: rgba(148, 163, 184, 0.1);
+      border-color: rgba(148, 163, 184, 0.25);
+      color: var(--muted);
+    }
+
+    .slider-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12px;
+    }
+
+    .mono-val {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--text);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+
+    .btn-cut {
+      width: 100%;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.14);
+      color: #fecaca;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .btn-cut:hover {
+      background: rgba(239, 68, 68, 0.24);
+    }
+
+    .btn-cut.active {
+      border-color: rgba(34, 197, 94, 0.48);
+      background: rgba(34, 197, 94, 0.16);
+      color: #bbf7d0;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    .stat {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+
+    .stat-k {
+      font-size: 9.5px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .stat-v {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .stat-sub {
+      font-family: var(--mono);
+      font-size: 9.5px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .budget-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .budget-table th,
+    .budget-table td {
+      padding: 6px 8px;
+      text-align: right;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .budget-table th:first-child,
+    .budget-table td:first-child {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .budget-table thead th {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .budget-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .budget-table td.num {
+      font-family: var(--mono);
+      font-weight: 600;
+    }
+
+    .c-good { color: #86efac; }
+    .c-warn { color: #fde68a; }
+    .c-bad  { color: #fca5a5; }
+
+    @media (max-width: 960px) {
+      .top-bar, .arch-bar {
+        right: 14px;
+      }
+      .arch-bar {
+        display: none;
+      }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+  <div id="labels-layer"></div>
+
+  <!-- Top Product Bar & Camera/Component Inspection Modes -->
+  <div class="top-bar">
+    <div class="brand-card">
+      <div class="brand-tag">SkyLock · Automated 2-Axis UAV Antenna System</div>
+      <div class="brand-title">GPS-Based 2.4 GHz Articulating High-Gain Antenna</div>
+      <div class="brand-desc">
+        14 dBi 2×2 RHCP patch array (30° beam) · 2× NEMA17 + 5:1 GT2 belts · 2× AS5600 12-bit encoders · u-blox NEO-M8N GPS · Sub-GHz MAVLink on ESP32.
+      </div>
+    </div>
+
+    <div class="view-bar">
+      <button class="chip-btn active" data-cam="hero" type="button">Product + Flight View</button>
+      <button class="chip-btn" data-cam="antenna" type="button">Antenna Front Close-Up</button>
+      <button class="chip-btn" data-cam="overview" type="button">Full 1.5 km Figure-8</button>
+      <button id="btn-explode" class="chip-btn" type="button">Exploded View: OFF</button>
+      <button id="btn-labels" class="chip-btn active" type="button">3D Callouts: ON</button>
+    </div>
+  </div>
+
+  <!-- Bottom Working Hardware Components Inspector -->
+  <div class="arch-bar">
+    <div class="arch-card">
+      <div class="arch-header">
+        <span>Working Product Components (Click any module to inspect in 3D)</span>
+        <span id="pkt-indicator" style="font-family: var(--mono); color: #7dd3fc;">MAVLink GLOBAL_POSITION_INT · 5 Hz (300 ms)</span>
+      </div>
+      <div class="hw-grid">
+        <div class="hw-node" data-part="patch">
+          <div class="hw-name"><span>14 dBi Patch Array</span><span class="hw-dot"></span></div>
+          <div class="hw-sub">2.4 GHz · 2×2 Microstrip · 30°</div>
+        </div>
+        <div class="hw-node" data-part="tilt">
+          <div class="hw-name"><span>Tilt Stage + AS5600</span><span class="hw-dot"></span></div>
+          <div id="hw-tilt-sub" class="hw-sub">5:1 GT2 · Enc: 0/4096</div>
+        </div>
+        <div class="hw-node" data-part="pan">
+          <div class="hw-name"><span>Pan Stage + AS5600</span><span class="hw-dot"></span></div>
+          <div id="hw-pan-sub" class="hw-sub">5:1 GT2 · Enc: 0/4096</div>
+        </div>
+        <div class="hw-node" data-part="esp32">
+          <div class="hw-name"><span>ESP32 + 2× TMC2209</span><span class="hw-dot"></span></div>
+          <div class="hw-sub">20 Hz Aim · 1/16 Microstep</div>
+        </div>
+        <div class="hw-node" data-part="gps">
+          <div class="hw-name"><span>u-blox NEO-M8N GPS</span><span class="hw-dot"></span></div>
+          <div class="hw-sub">LOCKED · 12 Sats · HDOP 0.8</div>
+        </div>
+        <div class="hw-node" data-part="radio">
+          <div class="hw-name"><span>Sub-GHz SiK Radio</span><span id="hw-radio-dot" class="hw-dot"></span></div>
+          <div id="hw-radio-sub" class="hw-sub">915 MHz Omni · 5 Hz Rx</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Telemetry & Control HUD -->
+  <aside class="panel">
+    <div class="header">
+      <div>
+        <div class="title">SkyLock Tracker</div>
+        <div class="subtitle">2.4 GHz · 14 dBi Patch · 5 Hz MAVLink (300 ms)</div>
+      </div>
+      <span id="link-badge" class="badge tracking">TRACKING</span>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Controls</div>
+      <div class="control-row">
+        <span class="control-title">Velocity Prediction</span>
+        <button id="btn-pred" class="btn-toggle on" type="button">ON</button>
+      </div>
+      <div class="slider-wrap">
+        <div class="slider-head">
+          <span class="control-title">Drone Speed</span>
+          <span id="speed-val" class="mono-val">35 m/s (126 km/h)</span>
+        </div>
+        <input id="speed-slider" type="range" min="10" max="80" step="1" value="35" />
+      </div>
+      <button id="btn-cut" class="btn-cut" type="button">Cut Telemetry</button>
+    </div>
+
+    <div class="section">
+      <div class="section-label">
+        <span>Target Aim (20 Hz)</span>
+        <span id="val-zenith" style="color:#fde68a;font-family:var(--mono);font-size:9.5px;"></span>
+      </div>
+      <div class="grid-3">
+        <div class="stat">
+          <div class="stat-k">Azimuth</div>
+          <div id="val-az" class="stat-v">0.0°</div>
+        </div>
+        <div class="stat">
+          <div class="stat-k">Elevation</div>
+          <div id="val-el" class="stat-v">0.0°</div>
+        </div>
+        <div class="stat">
+          <div class="stat-k">Range</div>
+          <div id="val-range" class="stat-v">0 m</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Actual Head (90°/s · 300°/s² · AS5600)</div>
+      <div class="grid-2">
+        <div class="stat">
+          <div class="stat-k">Pan (±180°)</div>
+          <div id="val-pan" class="stat-v">0.0°</div>
+          <div id="val-pan-steps" class="stat-sub">0 steps · 0.0°/s</div>
+        </div>
+        <div class="stat">
+          <div class="stat-k">Tilt (0–90°)</div>
+          <div id="val-tilt" class="stat-v">0.0°</div>
+          <div id="val-tilt-steps" class="stat-sub">0 steps · 0.0°/s</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Pointing Performance</div>
+      <div class="grid-2">
+        <div class="stat">
+          <div class="stat-k">Pointing Error</div>
+          <div id="val-err" class="stat-v">0.00°</div>
+        </div>
+        <div class="stat">
+          <div class="stat-k">Pointing Loss</div>
+          <div id="val-loss" class="stat-v">0.00 dB</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Link Budget (2.4 GHz · -95 dBm Sens)</div>
+      <table class="budget-table">
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Omni 2 dBi</th>
+            <th>Tracked 14 dBi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Rx Power</td>
+            <td id="val-rx-omni" class="num">-0.0 dBm</td>
+            <td id="val-rx-track" class="num">-0.0 dBm</td>
+          </tr>
+          <tr>
+            <td>Fade Margin</td>
+            <td id="val-fm-omni" class="num">+0.0 dB</td>
+            <td id="val-fm-track" class="num">+0.0 dB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </aside>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    // =========================================================================
+    // 1. Exact port of tracker_math.h to JavaScript
+    // =========================================================================
+    const R_EARTH = 6371000.0;
+    const D2R     = Math.PI / 180.0;
+
+    // Wrap any angle to [-180, 180)
+    function wrap180(a) {
+      a = (a + 180.0) % 360.0;
+      if (a < 0) a += 360.0;
+      return a - 180.0;
+    }
+
+    // Drone position relative to the tracker (local tangent plane, <5 m error out to ~50 km)
+    function toENU(g, d) {
+      const mlat = 0.5 * (g.lat + d.lat) * D2R;
+      return {
+        e: (d.lon - g.lon) * D2R * Math.cos(mlat) * R_EARTH,
+        n: (d.lat - g.lat) * D2R * R_EARTH,
+        u: d.alt - g.alt
+      };
+    }
+
+    // Dead-reckon a position forward by dt seconds
+    function predict(p, v, dt) {
+      return {
+        e: p.e + v.e * dt,
+        n: p.n + v.n * dt,
+        u: p.u + v.u * dt
+      };
+    }
+
+    // Azimuth / elevation / range; elevation includes the earth-curvature drop h^2 / 2R
+    function aimAt(v) {
+      const h  = Math.hypot(v.e, v.n);
+      let az   = Math.atan2(v.e, v.n) / D2R;
+      if (az < 0) az += 360.0;
+      const el = Math.atan2(v.u - (h * h) / (2.0 * R_EARTH), h) / D2R;
+      return { az, el, range: Math.sqrt(h * h + v.u * v.u) };
+    }
+
+    function enuToGeo(g, p) {
+      const dLatDeg = (p.n / R_EARTH) / D2R;
+      const lat = g.lat + dLatDeg;
+      const mlat = 0.5 * (g.lat + lat) * D2R;
+      const lon = g.lon + (p.e / (R_EARTH * Math.cos(mlat))) / D2R;
+      return { lat, lon, alt: g.alt + p.u };
+    }
+
+    window.SkyLockMath = { R_EARTH, D2R, wrap180, toENU, predict, aimAt };
+
+    // =========================================================================
+    // 2. Tracker & Simulation Parameters (from SkyLock doc & skylock_firmware.ino)
+    // =========================================================================
+    const STEPS_PER_DEG     = (200 * 16 * 5) / 360.0;
+    const MAX_SLEW_DEG_S    = 90.0;
+    const MAX_ACCEL_DEG_S2  = 300.0;
+    const AIM_INTERVAL_MS   = 50.0;
+    const TELEM_INTERVAL_MS = 200.0;
+    const TELEM_LATENCY_MS  = 300.0;
+    const COAST_MAX_S       = 5.0;
+    const ZENITH_HOLD_EL    = 85.0;
+    const BEAMWIDTH_DEG     = 30.0;
+    const HEADING_DEG       = 0.0;
+
+    const TX_POWER_DBM      = 27.0;
+    const DRONE_ANT_DBI     = 2.0;
+    const OMNI_GND_DBI      = 2.0;
+    const TRACK_GND_DBI     = 14.0;
+    const CABLE_MISC_DB     = -1.0;
+    const RX_SENS_DBM       = -95.0;
+    const FREQ_MHZ          = 2400.0;
+
+    const GROUND = { lat: 37.4275, lon: -122.1697, alt: 30.0 };
+
+    // =========================================================================
+    // 3. Drone Figure-8 Trajectory (100 - 1500 m range)
+    // =========================================================================
+    function sampleFigure8(theta) {
+      const e = 480.0 * Math.sin(2.0 * theta);
+      const n = 790.0 - 690.0 * Math.cos(theta);
+      const u = 85.0 + 55.0 * Math.sin(theta) - 35.0 * Math.cos(theta);
+
+      const de = 960.0 * Math.cos(2.0 * theta);
+      const dn = 690.0 * Math.sin(theta);
+      const du = 55.0 * Math.cos(theta) + 35.0 * Math.sin(theta);
+
+      return { pos: { e, n, u }, dPos: { e: de, n: dn, u: du } };
+    }
+
+    // =========================================================================
+    // 4. Simulation State
+    // =========================================================================
+    let simTimeMs     = 0;
+    // Start at theta = 0.48 so the antenna faces ~64 deg ENE at startup:
+    // the camera sees the front face of the patch array + the beam sweeping to the drone!
+    let theta         = 0.48;
+    let droneSpeedMs  = 35.0;
+    let predictionOn  = true;
+    let telemetryCut  = false;
+    let cutStartMs    = 0;
+    let explodedMode  = false;
+    let explodeLerp   = 0.0;
+    let showCallouts  = true;
+
+    const telemQueue = [];
+    const drone = {
+      g: GROUND,
+      v: { e: 0, n: 0, u: 0 },
+      tSampleMs: 0,
+      rxMs: 0,
+      ok: false
+    };
+
+    let aim        = { az: 0, el: 20, range: 150 };
+    let targetPan  = 0;
+    let targetTilt = 20;
+    let linkState  = 'TRACKING';
+    let coastElapsedS = 0;
+
+    const panAxis  = { pos: 0, vel: 0 };
+    const tiltAxis = { pos: 20, vel: 0 };
+
+    {
+      const initSample = sampleFigure8(theta);
+      const tangentLen = Math.hypot(initSample.dPos.e, initSample.dPos.n, initSample.dPos.u);
+      const initVel = {
+        e: (initSample.dPos.e / tangentLen) * droneSpeedMs,
+        n: (initSample.dPos.n / tangentLen) * droneSpeedMs,
+        u: (initSample.dPos.u / tangentLen) * droneSpeedMs
+      };
+      drone.g = enuToGeo(GROUND, initSample.pos);
+      drone.v = initVel;
+      drone.tSampleMs = 0;
+      drone.rxMs = 0;
+      drone.ok = true;
+
+      aim = aimAt(initSample.pos);
+      targetPan = wrap180(aim.az - HEADING_DEG);
+      targetTilt = Math.max(0.0, Math.min(90.0, aim.el));
+      panAxis.pos = targetPan;
+      tiltAxis.pos = targetTilt;
+    }
+
+    let nextTelemTxMs = TELEM_INTERVAL_MS;
+    let nextAimMs     = AIM_INTERVAL_MS;
+
+    function stepAxis(axis, target, dtSec, minPos, maxPos) {
+      const subSteps = 4;
+      const h = dtSec / subSteps;
+      for (let i = 0; i < subSteps; i++) {
+        const clampedTarget = Math.max(minPos, Math.min(maxPos, target));
+        const err = clampedTarget - axis.pos;
+        if (Math.abs(err) < 1e-4 && Math.abs(axis.vel) < 0.05) {
+          axis.pos = clampedTarget;
+          axis.vel = 0;
+          continue;
+        }
+        const stopVel = Math.sign(err) * Math.sqrt(2.0 * MAX_ACCEL_DEG_S2 * Math.abs(err));
+        const desiredVel = Math.max(-MAX_SLEW_DEG_S, Math.min(MAX_SLEW_DEG_S, stopVel));
+        const dv = Math.max(-MAX_ACCEL_DEG_S2 * h, Math.min(MAX_ACCEL_DEG_S2 * h, desiredVel - axis.vel));
+        axis.vel += dv;
+        const nextPos = axis.pos + axis.vel * h;
+        if ((err > 0 && nextPos > clampedTarget && Math.abs(axis.vel) <= MAX_ACCEL_DEG_S2 * h * 2.5) ||
+            (err < 0 && nextPos < clampedTarget && Math.abs(axis.vel) <= MAX_ACCEL_DEG_S2 * h * 2.5)) {
+          axis.pos = clampedTarget;
+          axis.vel = 0;
+        } else {
+          axis.pos = Math.max(minPos, Math.min(maxPos, nextPos));
+        }
+      }
+    }
+
+    function aimTick() {
+      if (!drone.ok) return;
+      const gapS = telemetryCut
+        ? (simTimeMs - cutStartMs) / 1000.0
+        : (simTimeMs - drone.rxMs) / 1000.0;
+
+      if (telemetryCut && gapS >= COAST_MAX_S) {
+        linkState = 'LOST';
+        coastElapsedS = COAST_MAX_S;
+        return;
+      }
+
+      if (telemetryCut) {
+        linkState = 'COASTING';
+        coastElapsedS = Math.max(0, gapS);
+      } else {
+        linkState = 'TRACKING';
+        coastElapsedS = 0;
+      }
+
+      const pktAgeS = Math.min((simTimeMs - drone.tSampleMs) / 1000.0, COAST_MAX_S);
+      const dt = (predictionOn || telemetryCut) ? pktAgeS : 0.0;
+      const pENU = predict(toENU(GROUND, drone.g), drone.v, dt);
+
+      aim = aimAt(pENU);
+      if (aim.el < ZENITH_HOLD_EL) {
+        targetPan = wrap180(aim.az - HEADING_DEG);
+      }
+      targetTilt = Math.max(0.0, Math.min(90.0, aim.el));
+    }
+
+    // =========================================================================
+    // 5. Three.js Renderer, PBR Studio Environment & Lighting
+    // =========================================================================
+    const SCALE = 0.1;
+    const GROUND_Y = -2.35;
+
+    function enuToScene(p) {
+      return new THREE.Vector3(p.e * SCALE, p.u * SCALE, -p.n * SCALE);
+    }
+
+    const container = document.getElementById('canvas-wrap');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.18;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    container.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070c14);
+    scene.fog = new THREE.FogExp2(0x070c14, 0.0018);
+
+    // PMREM Studio IBL Environment — makes metals, copper patches, CNC aluminum, brass,
+    // and clear acrylic radomes reflect realistic highlights like an industrial CAD showcase!
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const roomEnv = new RoomEnvironment();
+    scene.environment = pmremGenerator.fromScene(roomEnv, 0.035).texture;
+    roomEnv.dispose();
+    pmremGenerator.dispose();
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 750);
+    // Front-quarter hero angle: looks directly into the 14 dBi antenna face & electronics
+    // while sweeping right across the glowing 30 deg beam cone toward the flying drone!
+    camera.position.set(1.75, 0.42, 1.38);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.07;
+    controls.target.set(0.18, -0.22, -0.18);
+    controls.minDistance = 0.8;
+    controls.maxDistance = 310;
+    controls.maxPolarAngle = Math.PI * 0.495;
+
+    // Key, Fill & Rim Lights
+    scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 0.65));
+
+    const sun = new THREE.DirectionalLight(0xfff7ed, 2.1);
+    sun.position.set(18, 32, 22);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.bias = -0.0005;
+    sun.shadow.camera.near = 4;
+    sun.shadow.camera.far = 90;
+    sun.shadow.camera.left = -5;
+    sun.shadow.camera.right = 5;
+    sun.shadow.camera.top = 5;
+    sun.shadow.camera.bottom = -5;
+    scene.add(sun);
+
+    const rimCyan = new THREE.SpotLight(0x38bdf8, 6.0, 14, Math.PI / 3, 0.6, 1.4);
+    rimCyan.position.set(-2.8, 1.8, -2.5);
+    scene.add(rimCyan);
+
+    const fillWarm = new THREE.PointLight(0xfef3c7, 3.2, 10, 1.5);
+    fillWarm.position.set(2.5, 1.4, 2.0);
+    scene.add(fillWarm);
+
+    // Ground & Range Rings
+    const groundGeo = new THREE.CircleGeometry(220, 96);
+    groundGeo.rotateX(-Math.PI / 2);
+    const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({
+      color: 0x09101a,
+      roughness: 0.88,
+      metalness: 0.12
+    }));
+    groundMesh.position.y = GROUND_Y;
+    groundMesh.receiveShadow = true;
+    scene.add(groundMesh);
+
+    const grid = new THREE.GridHelper(340, 68, 0x1d344d, 0x111e2d);
+    grid.position.y = GROUND_Y + 0.015;
+    scene.add(grid);
+
+    // Subtle studio pad directly under tripod feet
+    const padRing = new THREE.Mesh(
+      new THREE.RingGeometry(1.18, 1.24, 64),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.28, side: THREE.DoubleSide })
+    );
+    padRing.rotation.x = -Math.PI / 2;
+    padRing.position.y = GROUND_Y + 0.025;
+    scene.add(padRing);
+
+    function createLabelSprite(text, color = '#7e93ad', size = 28) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.font = `600 ${size}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = color;
+      ctx.fillText(text, 128, 32);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+    }
+
+    for (const rM of [100, 500, 1000, 1500]) {
+      const rScene = rM * SCALE;
+      const pts = [];
+      for (let i = 0; i <= 128; i++) {
+        const a = (i / 128) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.sin(a) * rScene, GROUND_Y + 0.04, -Math.cos(a) * rScene));
+      }
+      scene.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: 0x284360, transparent: true, opacity: 0.65 })
+      ));
+
+      const lbl = createLabelSprite(`${rM} m`, '#6b87a8', 26);
+      const s = Math.max(3.6, rScene * 0.13);
+      lbl.scale.set(s, s * 0.25, 1);
+      lbl.position.set(0, GROUND_Y + 0.35, -rScene);
+      scene.add(lbl);
+    }
+
+    for (const c of [
+      { t: 'N (0°)',   x: 0,    z: -162, c: '#7dd3fc' },
+      { t: 'E (90°)',  x: 162,  z: 0,    c: '#64748b' },
+      { t: 'S (180°)', x: 0,    z: 162,  c: '#64748b' },
+      { t: 'W (270°)', x: -162, z: 0,    c: '#64748b' }
+    ]) {
+      const sp = createLabelSprite(c.t, c.c, 30);
+      sp.scale.set(16, 4, 1);
+      sp.position.set(c.x, GROUND_Y + 1.4, c.z);
+      scene.add(sp);
+    }
+
+    // =========================================================================
+    // 6. Procedural PBR Textures & Geometry Helpers (Studio CAD Quality)
+    // =========================================================================
+    function makeBrushedMetalBump() {
+      const c = document.createElement('canvas');
+      c.width = 256; c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = '#808080';
+      ctx.fillRect(0, 0, 256, 256);
+      for (let y = 0; y < 256; y++) {
+        const v = 112 + Math.floor(Math.random() * 32);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(0, y, 256, 1);
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function makeCarbonPETGBump() {
+      const c = document.createElement('canvas');
+      c.width = 128; c.height = 128;
+      const ctx = c.getContext('2d');
+      for (let y = 0; y < 128; y += 4) {
+        for (let x = 0; x < 128; x += 4) {
+          const checker = ((x + y) / 4) % 2 === 0;
+          ctx.fillStyle = checker ? '#9a9a9a' : '#686868';
+          ctx.fillRect(x, y, 4, 4);
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(8, 8);
+      return tex;
+    }
+
+    function makePatchArrayTextures() {
+      const size = 1024;
+      const albedo = document.createElement('canvas');
+      const bump = document.createElement('canvas');
+      const rough = document.createElement('canvas');
+      albedo.width = albedo.height = size;
+      bump.width = bump.height = size;
+      rough.width = rough.height = size;
+
+      const ca = albedo.getContext('2d');
+      const cb = bump.getContext('2d');
+      const cr = rough.getContext('2d');
+
+      // Base RF substrate (Rogers RO4350B / FR4 deep emerald solder mask)
+      ca.fillStyle = '#083328';
+      ca.fillRect(0, 0, size, size);
+      cb.fillStyle = '#404040';
+      cb.fillRect(0, 0, size, size);
+      cr.fillStyle = '#909090'; // matte laminate
+      cr.fillRect(0, 0, size, size);
+
+      // Subtle woven fiberglass grid in substrate
+      ca.strokeStyle = 'rgba(20, 83, 65, 0.35)';
+      ca.lineWidth = 2;
+      for (let i = 0; i < size; i += 16) {
+        ca.beginPath(); ca.moveTo(i, 0); ca.lineTo(i, size); ca.stroke();
+        ca.beginPath(); ca.moveTo(0, i); ca.lineTo(size, i); ca.stroke();
+      }
+
+      // Ground-plane perimeter ring + stitched via fence
+      ca.strokeStyle = '#d4a843';
+      ca.lineWidth = 14;
+      ca.strokeRect(32, 32, size - 64, size - 64);
+      cb.strokeStyle = '#d0d0d0';
+      cb.lineWidth = 14;
+      cb.strokeRect(32, 32, size - 64, size - 64);
+      cr.strokeStyle = '#303030';
+      cr.lineWidth = 14;
+      cr.strokeRect(32, 32, size - 64, size - 64);
+
+      for (let t = 56; t <= size - 56; t += 44) {
+        for (const [vx, vy] of [[t, 32], [t, size - 32], [32, t], [size - 32, t]]) {
+          ca.fillStyle = '#083328';
+          ca.beginPath(); ca.arc(vx, vy, 5, 0, Math.PI * 2); ca.fill();
+        }
+      }
+
+      // Corporate Wilkinson 1-to-4 microstrip feed network (raised ENIG gold traces)
+      const drawTrace = (x1, y1, x2, y2, w) => {
+        ca.strokeStyle = '#eab308'; ca.lineWidth = w; ca.lineCap = 'round';
+        cb.strokeStyle = '#d8d8d8'; cb.lineWidth = w; cb.lineCap = 'round';
+        cr.strokeStyle = '#282828'; cr.lineWidth = w; cr.lineCap = 'round';
+        for (const ctx of [ca, cb, cr]) {
+          ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+      };
+
+      // Central coax feed -> vertical splitter -> horizontal phase-matched arms
+      drawTrace(512, 512, 512, 296, 16);
+      drawTrace(512, 512, 512, 728, 16);
+      drawTrace(296, 296, 728, 296, 12);
+      drawTrace(296, 728, 728, 728, 12);
+      // Quarter-wave impedance transformer stubs into each patch
+      drawTrace(296, 296, 296, 370, 10);
+      drawTrace(728, 296, 728, 370, 10);
+      drawTrace(296, 728, 296, 654, 10);
+      drawTrace(728, 728, 728, 654, 10);
+
+      // Center SMA feed solder pad + isolation ring
+      ca.fillStyle = '#fde047';
+      ca.beginPath(); ca.arc(512, 512, 24, 0, Math.PI * 2); ca.fill();
+      ca.fillStyle = '#0f172a';
+      ca.beginPath(); ca.arc(512, 512, 9, 0, Math.PI * 2); ca.fill();
+
+      // 4 RHCP Mitered-Corner Microstrip Patches
+      const centers = [[296, 296], [728, 296], [296, 728], [728, 728]];
+      const pw = 264, ph = 264, ch = 42;
+      for (const [cx, cy] of centers) {
+        const x0 = cx - pw / 2, y0 = cy - ph / 2;
+        const pathPatch = (ctx) => {
+          ctx.beginPath();
+          ctx.moveTo(x0 + ch, y0);
+          ctx.lineTo(x0 + pw, y0);
+          ctx.lineTo(x0 + pw, y0 + ph - ch);
+          ctx.lineTo(x0 + pw - ch, y0 + ph);
+          ctx.lineTo(x0, y0 + ph);
+          ctx.lineTo(x0, y0 + ch);
+          ctx.closePath();
+          ctx.fill();
+        };
+
+        const g = ca.createLinearGradient(x0, y0, x0 + pw, y0 + ph);
+        g.addColorStop(0, '#d97706');
+        g.addColorStop(0.45, '#fde047');
+        g.addColorStop(1, '#ca8a04');
+        ca.fillStyle = g;
+        pathPatch(ca);
+
+        cb.fillStyle = '#f0f0f0';
+        pathPatch(cb);
+
+        cr.fillStyle = '#222222';
+        pathPatch(cr);
+
+        // Inset microstrip matching notches
+        const ny = (cy < 512) ? (y0 + ph - 44) : y0;
+        ca.fillStyle = '#083328';
+        cb.fillStyle = '#404040';
+        cr.fillStyle = '#909090';
+        for (const ctx of [ca, cb, cr]) {
+          ctx.fillRect(cx - 24, ny, 14, 44);
+          ctx.fillRect(cx + 10, ny, 14, 44);
+        }
+      }
+
+      // White silkscreen typography & RF alignment marks
+      ca.fillStyle = '#e2e8f0';
+      ca.font = 'bold 28px ui-monospace, monospace';
+      ca.textAlign = 'center';
+      ca.fillText('SKYLOCK · 2.4 GHz 14 dBi 2×2 RHCP', 512, 956);
+      ca.font = '600 20px ui-monospace, monospace';
+      ca.fillStyle = '#94a3b8';
+      ca.fillText('30° HPBW · 50Ω MICROSTRIP ARRAY', 512, 82);
+
+      const tAlbedo = new THREE.CanvasTexture(albedo);
+      tAlbedo.colorSpace = THREE.SRGBColorSpace;
+      tAlbedo.anisotropy = 8;
+      const tBump = new THREE.CanvasTexture(bump);
+      tBump.anisotropy = 8;
+      const tRough = new THREE.CanvasTexture(rough);
+      tRough.anisotropy = 8;
+      return { tAlbedo, tBump, tRough };
+    }
+
+    function createRoundedRectShape(w, h, r) {
+      const s = new THREE.Shape();
+      const x = -w / 2, y = -h / 2;
+      s.moveTo(x + r, y);
+      s.lineTo(x + w - r, y);
+      s.quadraticCurveTo(x + w, y, x + w, y + r);
+      s.lineTo(x + w, y + h - r);
+      s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      s.lineTo(x + r, y + h);
+      s.quadraticCurveTo(x, y + h, x, y + h - r);
+      s.lineTo(x, y + r);
+      s.quadraticCurveTo(x, y, x + r, y);
+      return s;
+    }
+
+    function createBeveledPlate(w, h, depth, r, bevel = 0.012) {
+      const shape = createRoundedRectShape(w, h, r);
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: depth,
+        bevelEnabled: true,
+        bevelSegments: 3,
+        steps: 1,
+        bevelSize: bevel,
+        bevelThickness: bevel
+      });
+      geo.translate(0, 0, -depth / 2);
+      return geo;
+    }
+
+    const brushedBump = makeBrushedMetalBump();
+    const carbonBump  = makeCarbonPETGBump();
+    const patchMaps   = makePatchArrayTextures();
+
+    const matAnodized = new THREE.MeshStandardMaterial({
+      color: 0x1e293b, metalness: 0.82, roughness: 0.28, bumpMap: brushedBump, bumpScale: 0.004
+    });
+    const matAluminum = new THREE.MeshStandardMaterial({
+      color: 0xb0becf, metalness: 0.92, roughness: 0.22, bumpMap: brushedBump, bumpScale: 0.005
+    });
+    const matChrome = new THREE.MeshStandardMaterial({
+      color: 0xe2e8f0, metalness: 0.96, roughness: 0.12
+    });
+    const matPETG = new THREE.MeshStandardMaterial({
+      color: 0x1e293b, metalness: 0.12, roughness: 0.52, bumpMap: carbonBump, bumpScale: 0.008
+    });
+    const matYokePETG = new THREE.MeshStandardMaterial({
+      color: 0x243447, metalness: 0.18, roughness: 0.44, bumpMap: carbonBump, bumpScale: 0.007
+    });
+    const matBrass = new THREE.MeshStandardMaterial({
+      color: 0xf59e0b, metalness: 0.94, roughness: 0.18
+    });
+    const matCopper3D = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24, metalness: 0.95, roughness: 0.16, bumpMap: brushedBump, bumpScale: 0.003
+    });
+    const matBelt = new THREE.MeshStandardMaterial({
+      color: 0x14171c, metalness: 0.05, roughness: 0.88
+    });
+    const matPCBGreen = new THREE.MeshStandardMaterial({
+      color: 0x15803d, metalness: 0.22, roughness: 0.36
+    });
+    const matPCBBlue = new THREE.MeshStandardMaterial({
+      color: 0x0284c7, metalness: 0.25, roughness: 0.34
+    });
+    const matHeatsink = new THREE.MeshStandardMaterial({
+      color: 0x0ea5e9, metalness: 0.88, roughness: 0.2
+    });
+    const matCeramicGPS = new THREE.MeshStandardMaterial({
+      color: 0xdccbb0, metalness: 0.08, roughness: 0.3
+    });
+    const matRubber = new THREE.MeshStandardMaterial({
+      color: 0x0f1318, metalness: 0.04, roughness: 0.88
+    });
+
+    // Build a true CNC Flanged GT2 Pulley with 3D teeth & lightening spokes
+    function buildGT2Pulley(radius, width, teethCount, isBig = false) {
+      const g = new THREE.Group();
+      const drum = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, width, teethCount),
+        matAluminum
+      );
+      drum.castShadow = true;
+      g.add(drum);
+
+      // Machined outer flanges
+      for (const fy of [-width * 0.54, width * 0.54]) {
+        const flange = new THREE.Mesh(
+          new THREE.CylinderGeometry(radius + 0.02, radius + 0.02, 0.01, 48),
+          matChrome
+        );
+        flange.position.y = fy;
+        g.add(flange);
+      }
+
+      // 3D tooth ridges around circumference
+      const toothGeo = new THREE.BoxGeometry(0.008, width * 0.96, 0.008);
+      for (let i = 0; i < teethCount; i++) {
+        const a = (i / teethCount) * Math.PI * 2;
+        const t = new THREE.Mesh(toothGeo, matAnodized);
+        t.position.set(Math.cos(a) * radius, 0, Math.sin(a) * radius);
+        t.rotation.y = -a;
+        g.add(t);
+      }
+
+      // Hub collar + lightening holes on 100T pulleys
+      const collar = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.28, radius * 0.28, width + 0.03, 24),
+        matAnodized
+      );
+      g.add(collar);
+
+      if (isBig) {
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          const recess = new THREE.Mesh(
+            new THREE.CylinderGeometry(radius * 0.16, radius * 0.16, width + 0.006, 16),
+            matAnodized
+          );
+          recess.position.set(Math.cos(a) * radius * 0.56, 0, Math.sin(a) * radius * 0.56);
+          g.add(recess);
+        }
+      }
+      return g;
+    }
+
+    function createGT2BeltMesh(c1, r1, c2, r2, width, thickness = 0.013) {
+      const dx = c2.x - c1.x;
+      const dy = c2.y - c1.y;
+      const baseAngle = Math.atan2(dy, dx);
+      const pts2d = [];
+      const segs = 28;
+      for (let i = 0; i <= segs; i++) {
+        const a = baseAngle - Math.PI / 2 + (i / segs) * Math.PI;
+        pts2d.push(new THREE.Vector2(c2.x + Math.cos(a) * (r2 + thickness), c2.y + Math.sin(a) * (r2 + thickness)));
+      }
+      for (let i = 0; i <= segs; i++) {
+        const a = baseAngle + Math.PI / 2 + (i / segs) * Math.PI;
+        pts2d.push(new THREE.Vector2(c1.x + Math.cos(a) * (r1 + thickness), c1.y + Math.sin(a) * (r1 + thickness)));
+      }
+      pts2d.push(pts2d[0].clone());
+
+      const shape = new THREE.Shape(pts2d);
+      const innerPts = [];
+      for (let i = 0; i <= segs; i++) {
+        const a = baseAngle - Math.PI / 2 + (i / segs) * Math.PI;
+        innerPts.push(new THREE.Vector2(c2.x + Math.cos(a) * r2, c2.y + Math.sin(a) * r2));
+      }
+      for (let i = 0; i <= segs; i++) {
+        const a = baseAngle + Math.PI / 2 + (i / segs) * Math.PI;
+        innerPts.push(new THREE.Vector2(c1.x + Math.cos(a) * r1, c1.y + Math.sin(a) * r1));
+      }
+      shape.holes.push(new THREE.Path(innerPts));
+
+      const extrudeGeo = new THREE.ExtrudeGeometry(shape, { depth: width, bevelEnabled: false, curveSegments: 24 });
+      extrudeGeo.translate(0, 0, -width / 2);
+      return new THREE.Mesh(extrudeGeo, matBelt);
+    }
+
+    function buildNema17Stepper() {
+      const g = new THREE.Group();
+      const bodyGeo = createBeveledPlate(0.22, 0.22, 0.22, 0.025, 0.008);
+      bodyGeo.rotateX(Math.PI / 2);
+      const midStack = new THREE.Mesh(bodyGeo, matAnodized);
+      midStack.castShadow = true;
+      g.add(midStack);
+
+      const capGeo = createBeveledPlate(0.225, 0.225, 0.045, 0.025, 0.006);
+      capGeo.rotateX(Math.PI / 2);
+      for (const cy of [-0.095, 0.095]) {
+        const cap = new THREE.Mesh(capGeo, matAluminum);
+        cap.position.y = cy;
+        g.add(cap);
+      }
+
+      // 4 M3 corner tie bolts
+      for (const bx of [-0.082, 0.082]) {
+        for (const bz of [-0.082, 0.082]) {
+          const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.25, 8), matChrome);
+          bolt.position.set(bx, 0, bz);
+          g.add(bolt);
+        }
+      }
+
+      // Shaft
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.14, 16), matChrome);
+      shaft.position.y = 0.18;
+      g.add(shaft);
+      return g;
+    }
+
+    // =========================================================================
+    // 7. Build the Complete SkyLock Product Assembly
+    // =========================================================================
+    const trackerRoot = new THREE.Group();
+    scene.add(trackerRoot);
+
+    // A. Tripod Base
+    const tripodGroup = new THREE.Group();
+    trackerRoot.add(tripodGroup);
+
+    const HUB_Y = -0.98;
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.29, 0.18, 32), matAnodized);
+    hub.position.y = HUB_Y;
+    hub.castShadow = true;
+    tripodGroup.add(hub);
+
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.36, 24), matChrome);
+    mast.position.y = HUB_Y + 0.24;
+    mast.castShadow = true;
+    tripodGroup.add(mast);
+
+    const lockRing = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.055, 24), matBrass);
+    lockRing.position.y = HUB_Y + 0.35;
+    tripodGroup.add(lockRing);
+
+    for (let i = 0; i < 3; i++) {
+      const ang = (i * 2 * Math.PI) / 3 + Math.PI / 6;
+      const topPt = new THREE.Vector3(Math.cos(ang) * 0.21, HUB_Y - 0.04, Math.sin(ang) * 0.21);
+      const botPt = new THREE.Vector3(Math.cos(ang) * 1.06, GROUND_Y + 0.05, Math.sin(ang) * 1.06);
+      const legVec = new THREE.Vector3().subVectors(botPt, topPt);
+
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.038, legVec.length(), 18), matAnodized);
+      leg.position.copy(topPt).addScaledVector(legVec, 0.5);
+      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), legVec.clone().normalize());
+      leg.castShadow = true;
+      tripodGroup.add(leg);
+
+      // Leg clamp collar
+      const clampPt = new THREE.Vector3().lerpVectors(topPt, botPt, 0.45);
+      const clamp = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.09, 16), matAluminum);
+      clamp.position.copy(clampPt);
+      clamp.quaternion.copy(leg.quaternion);
+      tripodGroup.add(clamp);
+
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.095, 0.09, 18), matRubber);
+      foot.position.set(botPt.x, GROUND_Y + 0.045, botPt.z);
+      tripodGroup.add(foot);
+
+      const colPt = new THREE.Vector3(0, HUB_Y - 0.46, 0);
+      const braceVec = new THREE.Vector3().subVectors(clampPt, colPt);
+      const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, braceVec.length(), 12), matAluminum);
+      brace.position.copy(colPt).addScaledVector(braceVec, 0.5);
+      brace.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), braceVec.clone().normalize());
+      tripodGroup.add(brace);
+    }
+
+    const lowerCol = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.48, 16), matAnodized);
+    lowerCol.position.y = HUB_Y - 0.25;
+    tripodGroup.add(lowerCol);
+
+    // B. Stationary Base Plate, Pan Motor, ESP32 + 2x TMC2209, GPS & Sub-GHz Radio
+    const baseStageGroup = new THREE.Group();
+    trackerRoot.add(baseStageGroup);
+
+    const BASE_Y = -0.60;
+    const basePlateGeo = createBeveledPlate(1.16, 0.96, 0.055, 0.08, 0.012);
+    basePlateGeo.rotateX(Math.PI / 2);
+    const basePlate = new THREE.Mesh(basePlateGeo, matAluminum);
+    basePlate.position.set(0, BASE_Y, 0.08);
+    basePlate.castShadow = true;
+    basePlate.receiveShadow = true;
+    baseStageGroup.add(basePlate);
+
+    // 100 mm Slewing Bearing Race
+    const bearingOuter = new THREE.Mesh(new THREE.CylinderGeometry(0.365, 0.365, 0.05, 48), matChrome);
+    bearingOuter.position.set(0, BASE_Y + 0.05, 0);
+    baseStageGroup.add(bearingOuter);
+
+    // Pan NEMA17 Stepper + 20T Flanged Pinion + GT2 Belt
+    const PAN_MOTOR_X = -0.41, PAN_MOTOR_Z = 0.29;
+    const panNema = buildNema17Stepper();
+    panNema.position.set(PAN_MOTOR_X, BASE_Y - 0.16, PAN_MOTOR_Z);
+    baseStageGroup.add(panNema);
+
+    const panPinionMesh = buildGT2Pulley(0.072, 0.07, 18, false);
+    panPinionMesh.position.set(PAN_MOTOR_X, BASE_Y + 0.115, PAN_MOTOR_Z);
+    baseStageGroup.add(panPinionMesh);
+
+    const panBeltMesh = createGT2BeltMesh(
+      new THREE.Vector2(0, 0), 0.35,
+      new THREE.Vector2(PAN_MOTOR_X, PAN_MOTOR_Z), 0.072,
+      0.062
+    );
+    panBeltMesh.rotation.x = Math.PI / 2;
+    panBeltMesh.position.y = BASE_Y + 0.115;
+    baseStageGroup.add(panBeltMesh);
+
+    // Pan AS5600 Encoder PCB below turntable center
+    const panEncoderPCB = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.02, 0.16), matPCBGreen);
+    panEncoderPCB.position.set(0, BASE_Y - 0.048, 0);
+    baseStageGroup.add(panEncoderPCB);
+
+    // Weatherproof Electronics Enclosure (ESP32 + 2x TMC2209 + LEDs)
+    const elecGroup = new THREE.Group();
+    elecGroup.position.set(0.39, BASE_Y + 0.11, 0.22);
+    baseStageGroup.add(elecGroup);
+
+    const trayGeo = createBeveledPlate(0.36, 0.42, 0.09, 0.04, 0.008);
+    trayGeo.rotateX(Math.PI / 2);
+    const elecTray = new THREE.Mesh(trayGeo, matPETG);
+    elecTray.position.y = -0.02;
+    elecTray.castShadow = true;
+    elecGroup.add(elecTray);
+
+    // ESP32 DevKit
+    const espPCB = new THREE.Mesh(new THREE.BoxGeometry(0.135, 0.018, 0.27), matPCBBlue);
+    espPCB.position.set(-0.075, 0.02, 0);
+    elecGroup.add(espPCB);
+    const espCan = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.024, 0.10), matChrome);
+    espCan.position.set(-0.075, 0.038, -0.06);
+    elecGroup.add(espCan);
+    const espLedMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+    const espLed = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), espLedMat);
+    espLed.position.set(-0.075, 0.035, 0.09);
+    elecGroup.add(espLed);
+
+    // 2x TMC2209 Drivers with Finned Blue Heatsinks
+    for (const dz of [-0.085, 0.07]) {
+      const tmcPCB = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.018, 0.115), matPCBGreen);
+      tmcPCB.position.set(0.08, 0.02, dz);
+      elecGroup.add(tmcPCB);
+
+      for (let f = -2; f <= 2; f++) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.045, 0.007), matHeatsink);
+        fin.position.set(0.08, 0.046, dz + f * 0.014);
+        elecGroup.add(fin);
+      }
+    }
+
+    // Clear Acrylic Polycarbonate Lid
+    const lidGeo = createBeveledPlate(0.37, 0.43, 0.075, 0.04, 0.008);
+    lidGeo.rotateX(Math.PI / 2);
+    const elecLid = new THREE.Mesh(
+      lidGeo,
+      new THREE.MeshPhysicalMaterial({
+        color: 0xe0f2fe,
+        transparent: true,
+        opacity: 0.26,
+        roughness: 0.08,
+        metalness: 0.05,
+        transmission: 0.4,
+        ior: 1.49
+      })
+    );
+    elecLid.position.y = 0.065;
+    elecGroup.add(elecLid);
+
+    // u-blox NEO-M8N GPS Mast & Ceramic Patch
+    const gpsGroup = new THREE.Group();
+    gpsGroup.position.set(0.39, BASE_Y + 0.24, 0.22);
+    baseStageGroup.add(gpsGroup);
+
+    const gpsPuck = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.028, 32), matPCBGreen);
+    gpsGroup.add(gpsPuck);
+    const gpsCeramic = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.022, 0.125), matCeramicGPS);
+    gpsCeramic.position.y = 0.024;
+    gpsGroup.add(gpsCeramic);
+    const gpsCenter = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.028, 12), matChrome);
+    gpsCenter.position.y = 0.024;
+    gpsGroup.add(gpsCenter);
+    const gpsLedMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    const gpsLed = new THREE.Mesh(new THREE.SphereGeometry(0.01, 8, 8), gpsLedMat);
+    gpsLed.position.set(0.08, 0.018, 0.06);
+    gpsGroup.add(gpsLed);
+
+    // Sub-GHz MAVLink Telemetry Radio + Omni Whip Antenna
+    const radioGroup = new THREE.Group();
+    radioGroup.position.set(0.47, BASE_Y + 0.11, -0.20);
+    baseStageGroup.add(radioGroup);
+
+    const sikBox = new THREE.Mesh(new THREE.BoxGeometry(0.135, 0.165, 0.085), matAnodized);
+    sikBox.castShadow = true;
+    radioGroup.add(sikBox);
+
+    const smaBase = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.055, 16), matBrass);
+    smaBase.position.y = 0.105;
+    radioGroup.add(smaBase);
+
+    const whipAnt = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.019, 0.64, 16), matRubber);
+    whipAnt.position.y = 0.43;
+    whipAnt.castShadow = true;
+    radioGroup.add(whipAnt);
+
+    const whipTip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 12, 12), matBrass);
+    whipTip.position.y = 0.75;
+    radioGroup.add(whipTip);
+
+    const radioPulseRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.05, 0.085, 28),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.8 })
+    );
+    radioPulseRing.rotation.x = -Math.PI / 2;
+    radioPulseRing.position.y = 0.75;
+    radioGroup.add(radioPulseRing);
+
+    // C. Articulating Pan Stage (100T CNC Pulley + Sculpted U-Yoke + Tilt Stepper)
+    const panGroup = new THREE.Group();
+    trackerRoot.add(panGroup);
+
+    const panPulley = buildGT2Pulley(0.35, 0.072, 48, true);
+    panPulley.position.y = BASE_Y + 0.115;
+    panGroup.add(panPulley);
+
+    const panMagnet = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.02, 16), matBrass);
+    panMagnet.position.y = BASE_Y - 0.025;
+    panGroup.add(panMagnet);
+
+    const YOKE_HALF_W = 0.48;
+    const yokeBaseGeo = createBeveledPlate(YOKE_HALF_W * 2 + 0.16, 0.30, 0.068, 0.045, 0.01);
+    yokeBaseGeo.rotateX(Math.PI / 2);
+    const yokeBase = new THREE.Mesh(yokeBaseGeo, matYokePETG);
+    yokeBase.position.y = -0.395;
+    yokeBase.castShadow = true;
+    panGroup.add(yokeBase);
+
+    // Sculpted Tapered U-Yoke Arms
+    const armShape = new THREE.Shape();
+    armShape.moveTo(-0.14, -0.38);
+    armShape.lineTo(0.14, -0.38);
+    armShape.lineTo(0.10, 0.02);
+    armShape.absarc(0, 0.02, 0.10, 0, Math.PI, false);
+    armShape.lineTo(-0.14, -0.38);
+
+    const armGeo = new THREE.ExtrudeGeometry(armShape, {
+      depth: 0.09,
+      bevelEnabled: true,
+      bevelSegments: 3,
+      steps: 1,
+      bevelSize: 0.012,
+      bevelThickness: 0.012
+    });
+    armGeo.rotateY(Math.PI / 2);
+    armGeo.translate(-0.045, 0, 0);
+
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Mesh(armGeo, matYokePETG);
+      arm.position.set(side * YOKE_HALF_W, 0, 0);
+      arm.castShadow = true;
+      panGroup.add(arm);
+
+      const bearingHousing = new THREE.Mesh(new THREE.CylinderGeometry(0.102, 0.102, 0.13, 28), matAluminum);
+      bearingHousing.rotation.z = Math.PI / 2;
+      bearingHousing.position.set(side * YOKE_HALF_W, 0, 0);
+      panGroup.add(bearingHousing);
+
+      const bearingInner = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.135, 24), matChrome);
+      bearingInner.rotation.z = Math.PI / 2;
+      bearingInner.position.set(side * YOKE_HALF_W, 0, 0);
+      panGroup.add(bearingInner);
+    }
+
+    // Tilt NEMA17 Stepper + 20T Pinion + Vertical 5:1 GT2 Belt
+    const TILT_MOTOR_Y = -0.255, TILT_MOTOR_Z = 0.15;
+    const tiltNema = buildNema17Stepper();
+    tiltNema.rotation.z = Math.PI / 2;
+    tiltNema.position.set(YOKE_HALF_W + 0.15, TILT_MOTOR_Y, TILT_MOTOR_Z);
+    panGroup.add(tiltNema);
+
+    const tiltPinionMesh = buildGT2Pulley(0.056, 0.062, 16, false);
+    tiltPinionMesh.rotation.z = Math.PI / 2;
+    tiltPinionMesh.position.set(YOKE_HALF_W - 0.11, TILT_MOTOR_Y, TILT_MOTOR_Z);
+    panGroup.add(tiltPinionMesh);
+
+    const tiltBeltMesh = createGT2BeltMesh(
+      new THREE.Vector2(0, 0), 0.24,
+      new THREE.Vector2(TILT_MOTOR_Z, TILT_MOTOR_Y), 0.056,
+      0.052
+    );
+    tiltBeltMesh.rotation.y = Math.PI / 2;
+    tiltBeltMesh.position.x = YOKE_HALF_W - 0.11;
+    panGroup.add(tiltBeltMesh);
+
+    // Tilt AS5600 12-bit Absolute Encoder on Left U-Yoke Arm
+    const tiltEncoderGroup = new THREE.Group();
+    tiltEncoderGroup.position.set(-YOKE_HALF_W - 0.085, 0, 0);
+    panGroup.add(tiltEncoderGroup);
+
+    const tiltEncPCB = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.16, 0.16), matPCBGreen);
+    tiltEncoderGroup.add(tiltEncPCB);
+    const tiltEncChip = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.05, 0.05), matRubber);
+    tiltEncChip.position.x = 0.01;
+    tiltEncoderGroup.add(tiltEncChip);
+
+    // D. Articulating Tilt Stage & CNC 14 dBi 2x2 Phased Patch Antenna (Main Product)
+    const tiltGroup = new THREE.Group();
+    panGroup.add(tiltGroup);
+
+    const tiltShaft = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.044, YOKE_HALF_W * 2 + 0.19, 28), matChrome);
+    tiltShaft.rotation.z = Math.PI / 2;
+    tiltGroup.add(tiltShaft);
+
+    const tiltMagnet = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.018, 16), matBrass);
+    tiltMagnet.rotation.z = Math.PI / 2;
+    tiltMagnet.position.x = -YOKE_HALF_W - 0.062;
+    tiltGroup.add(tiltMagnet);
+
+    const tiltPulley = buildGT2Pulley(0.24, 0.056, 40, true);
+    tiltPulley.rotation.z = Math.PI / 2;
+    tiltPulley.position.x = YOKE_HALF_W - 0.11;
+    tiltGroup.add(tiltPulley);
+
+    // Main Antenna Product Assembly (Center of Gravity balanced at Tilt Axis)
+    const antennaAssembly = new THREE.Group();
+    tiltGroup.add(antennaAssembly);
+
+    // 1) CNC Machined Aluminum Backplate Frame (Beveled & Chamfered)
+    const backplateGeo = createBeveledPlate(0.76, 0.76, 0.032, 0.045, 0.012);
+    const antBackPlate = new THREE.Mesh(backplateGeo, matAluminum);
+    antBackPlate.position.z = 0.022;
+    antBackPlate.castShadow = true;
+    antBackPlate.receiveShadow = true;
+    antennaAssembly.add(antBackPlate);
+
+    // Rear CNC stiffening ribs & yoke clamp hub
+    const rearHubGeo = createBeveledPlate(0.24, 0.18, 0.06, 0.025, 0.008);
+    const rearHub = new THREE.Mesh(rearHubGeo, matAnodized);
+    rearHub.position.z = 0.055;
+    antennaAssembly.add(rearHub);
+
+    for (const ry of [-0.22, -0.11, 0.11, 0.22]) {
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.016, 0.024), matAnodized);
+      rib.position.set(0, ry, 0.044);
+      antennaAssembly.add(rib);
+    }
+
+    // 2) Exposed 14 dBi 2.4 GHz 2x2 Phased Microstrip Patch Array PCB (with bump + roughness maps!)
+    const patchArrayMat = new THREE.MeshStandardMaterial({
+      map: patchMaps.tAlbedo,
+      bumpMap: patchMaps.tBump,
+      bumpScale: 0.014,
+      roughnessMap: patchMaps.tRough,
+      roughness: 0.85,
+      metalness: 0.45
+    });
+    const substrateGeo = createBeveledPlate(0.68, 0.68, 0.02, 0.03, 0.004);
+    const patchSubstrate = new THREE.Mesh(substrateGeo, patchArrayMat);
+    patchSubstrate.position.z = -0.01;
+    patchSubstrate.castShadow = true;
+    antennaAssembly.add(patchSubstrate);
+
+    // 4 Raised 3D Mitered Gold/Copper Patch Plates + Brass Standoffs
+    const patchPlateShape = (() => {
+      const pw = 0.182, ph = 0.182, ch = 0.028;
+      const x0 = -pw / 2, y0 = -ph / 2;
+      const s = new THREE.Shape();
+      s.moveTo(x0 + ch, y0);
+      s.lineTo(x0 + pw, y0);
+      s.lineTo(x0 + pw, y0 + ph - ch);
+      s.lineTo(x0 + pw - ch, y0 + ph);
+      s.lineTo(x0, y0 + ph);
+      s.lineTo(x0, y0 + ch);
+      s.closePath();
+      return s;
+    })();
+    const patchPlateGeo = new THREE.ExtrudeGeometry(patchPlateShape, {
+      depth: 0.008,
+      bevelEnabled: true,
+      bevelSegments: 2,
+      steps: 1,
+      bevelSize: 0.003,
+      bevelThickness: 0.003
+    });
+    patchPlateGeo.translate(0, 0, -0.004);
+
+    for (const px of [-0.155, 0.155]) {
+      for (const py of [-0.155, 0.155]) {
+        const plate = new THREE.Mesh(patchPlateGeo, matCopper3D);
+        plate.position.set(px, py, -0.024);
+        antennaAssembly.add(plate);
+      }
+    }
+
+    // 4 Brass Hex Standoffs separating Patch PCB and Protective Radome
+    for (const sx of [-0.31, 0.31]) {
+      for (const sy of [-0.31, 0.31]) {
+        const standoff = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.055, 6), matBrass);
+        standoff.rotation.x = Math.PI / 2;
+        standoff.position.set(sx, sy, -0.032);
+        antennaAssembly.add(standoff);
+      }
+    }
+
+    // 3) Crystal-Clear Polycarbonate Radome Cover + Molded Gasket + Stainless Hex Bolts
+    const radomeGroup = new THREE.Group();
+    radomeGroup.position.z = -0.062;
+    antennaAssembly.add(radomeGroup);
+
+    const radomeGeo = createBeveledPlate(0.74, 0.74, 0.022, 0.042, 0.008);
+    const radomeBezel = new THREE.Mesh(
+      radomeGeo,
+      new THREE.MeshPhysicalMaterial({
+        color: 0xf1f5f9,
+        transparent: true,
+        opacity: 0.18,
+        roughness: 0.06,
+        metalness: 0.05,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        ior: 1.49,
+        side: THREE.DoubleSide
+      })
+    );
+    radomeGroup.add(radomeBezel);
+
+    // Molded dark rubber weather gasket perimeter frame around radome
+    const gasketOuter = createRoundedRectShape(0.75, 0.75, 0.045);
+    const gasketHole = createRoundedRectShape(0.69, 0.69, 0.032);
+    gasketOuter.holes.push(gasketHole);
+    const gasketGeo = new THREE.ExtrudeGeometry(gasketOuter, { depth: 0.028, bevelEnabled: false });
+    gasketGeo.translate(0, 0, -0.014);
+    radomeGroup.add(new THREE.Mesh(gasketGeo, matAnodized));
+
+    for (const bx of [-0.31, 0.31]) {
+      for (const by of [-0.31, 0.31]) {
+        const boltHead = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.024, 16), matChrome);
+        boltHead.rotation.x = Math.PI / 2;
+        boltHead.position.set(bx, by, -0.018);
+        radomeGroup.add(boltHead);
+      }
+    }
+
+    // 4) Rear Gold-Plated SMA Bulkhead + Braided RF Coax Service Loop
+    const smaBulkhead = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.08, 6), matBrass);
+    smaBulkhead.rotation.x = Math.PI / 2;
+    smaBulkhead.position.set(0, -0.09, 0.07);
+    antennaAssembly.add(smaBulkhead);
+
+    const smaNut = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.045, 6), matBrass);
+    smaNut.rotation.x = Math.PI / 2;
+    smaNut.position.set(0, -0.09, 0.11);
+    antennaAssembly.add(smaNut);
+
+    const coaxCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, -0.09, 0.12),
+      new THREE.Vector3(0, -0.22, 0.25),
+      new THREE.Vector3(-0.22, -0.34, 0.23),
+      new THREE.Vector3(-0.28, -0.38, 0.05)
+    ]);
+    antennaAssembly.add(new THREE.Mesh(
+      new THREE.TubeGeometry(coaxCurve, 28, 0.017, 12, false),
+      matRubber
+    ));
+
+    // E. Custom Shader 30-deg Directional RF Beam Cone + Traveling Wavefronts
+    const BEAM_HALF_ANGLE_RAD = (BEAMWIDTH_DEG * 0.5) * D2R;
+    const beamUnitRadius = Math.tan(BEAM_HALF_ANGLE_RAD);
+
+    const beamGeo = new THREE.ConeGeometry(beamUnitRadius, 1.0, 64, 1, true);
+    beamGeo.translate(0, -0.5, 0);
+    beamGeo.rotateX(Math.PI / 2);
+
+    const beamUniforms = {
+      uColor: { value: new THREE.Color(0x22c55e) },
+      uTime:  { value: 0.0 }
+    };
+
+    const beamShaderMat = new THREE.ShaderMaterial({
+      uniforms: beamUniforms,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormalView;
+        varying vec3 vViewDir;
+        void main() {
+          vUv = uv;
+          vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+          vNormalView = normalize(normalMatrix * normal);
+          vViewDir = normalize(-mvPos.xyz);
+          gl_Position = projectionMatrix * mvPos;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uTime;
+        varying vec2 vUv;
+        varying vec3 vNormalView;
+        varying vec3 vViewDir;
+        void main() {
+          // vUv.y goes 1.0 at apex (antenna) to 0.0 at far end
+          float distFromApex = 1.0 - vUv.y;
+          float rim = 1.0 - abs(dot(normalize(vNormalView), normalize(vViewDir)));
+          float fresnel = pow(rim, 1.35) * 0.75 + 0.25;
+          float wave = 0.5 + 0.5 * sin(distFromApex * 38.0 - uTime * 5.5);
+          float waveMask = smoothstep(0.65, 1.0, wave) * 0.26;
+          float falloff = smoothstep(1.0, 0.08, distFromApex) * smoothstep(0.0, 0.04, distFromApex);
+          float alpha = (0.075 * fresnel + waveMask * 0.38) * falloff;
+          gl_FragColor = vec4(uColor, alpha);
+        }
+      `
+    });
+    const beamCone = new THREE.Mesh(beamGeo, beamShaderMat);
+    tiltGroup.add(beamCone);
+
+    const axisGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, -0.07),
+      new THREE.Vector3(0, 0, -1.0)
+    ]);
+    const axisMat = new THREE.LineBasicMaterial({ color: 0x86efac, transparent: true, opacity: 0.65 });
+    const beamAxis = new THREE.Line(axisGeo, axisMat);
+    tiltGroup.add(beamAxis);
+
+    const ringPts = [];
+    for (let i = 0; i <= 64; i++) {
+      const a = (i / 64) * Math.PI * 2;
+      ringPts.push(new THREE.Vector3(Math.cos(a) * beamUnitRadius, Math.sin(a) * beamUnitRadius, -1.0));
+    }
+    const beamRimMat = new THREE.LineBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.45 });
+    const beamRim = new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts), beamRimMat);
+    tiltGroup.add(beamRim);
+
+    const nearRimPts = ringPts.map(p => p.clone().multiplyScalar(1.65));
+    const nearRim = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(nearRimPts),
+      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 })
+    );
+    tiltGroup.add(nearRim);
+
+    // =========================================================================
+    // 8. 3D Component Callout Anchors & Interactive Camera Inspection
+    // =========================================================================
+    function makeAnchor(parent, x, y, z) {
+      const o = new THREE.Object3D();
+      o.position.set(x, y, z);
+      parent.add(o);
+      return o;
+    }
+
+    const calloutDefs = [
+      {
+        id: 'patch',
+        title: '14 dBi 2.4 GHz Patch Array',
+        sub: '2×2 RHCP · 30° Beam',
+        anchor: makeAnchor(radomeGroup, 0, 0.39, -0.02),
+        camMode: 'antennaFront'
+      },
+      {
+        id: 'tilt',
+        title: 'Tilt Stage (0–90°)',
+        sub: '5:1 GT2 Belt + AS5600',
+        anchor: makeAnchor(panGroup, -YOKE_HALF_W - 0.1, 0.08, 0),
+        camOffset: new THREE.Vector3(-1.35, 0.32, 0.92),
+        lookOffset: new THREE.Vector3(-0.2, -0.05, 0)
+      },
+      {
+        id: 'pan',
+        title: 'Pan Stage (±180°)',
+        sub: '100T Turntable + AS5600',
+        anchor: makeAnchor(baseStageGroup, -0.41, BASE_Y + 0.18, 0.29),
+        camOffset: new THREE.Vector3(-1.42, 0.25, 1.38),
+        lookOffset: new THREE.Vector3(-0.15, BASE_Y + 0.05, 0.1)
+      },
+      {
+        id: 'esp32',
+        title: 'ESP32 + 2× TMC2209',
+        sub: '20 Hz Aim · 1/16 Microstep',
+        anchor: makeAnchor(elecGroup, 0, 0.12, 0.12),
+        camOffset: new THREE.Vector3(1.18, 0.42, 1.28),
+        lookOffset: new THREE.Vector3(0.35, BASE_Y + 0.1, 0.2)
+      },
+      {
+        id: 'gps',
+        title: 'u-blox NEO-M8N GPS',
+        sub: 'UART1 · 30-Fix Base Lock',
+        anchor: makeAnchor(gpsGroup, 0, 0.08, 0),
+        camOffset: new THREE.Vector3(1.12, 0.55, 1.15),
+        lookOffset: new THREE.Vector3(0.39, BASE_Y + 0.22, 0.22)
+      },
+      {
+        id: 'radio',
+        title: 'Sub-GHz MAVLink Radio',
+        sub: 'UART2 · 5 Hz Omni Link',
+        anchor: makeAnchor(radioGroup, 0, 0.55, 0),
+        camOffset: new THREE.Vector3(1.28, 0.45, -0.82),
+        lookOffset: new THREE.Vector3(0.45, BASE_Y + 0.26, -0.18)
+      }
+    ];
+
+    const labelsLayer = document.getElementById('labels-layer');
+    for (const def of calloutDefs) {
+      const el = document.createElement('div');
+      el.className = 'callout';
+      el.dataset.part = def.id;
+      el.innerHTML = `${def.title}<span class="c-sub">${def.sub}</span>`;
+      el.addEventListener('click', () => focusPart(def.id));
+      labelsLayer.appendChild(el);
+      def.el = el;
+    }
+
+    let camAnim = null;
+    function animateCameraTo(pos, target, durationMs = 650) {
+      camAnim = {
+        startPos: camera.position.clone(),
+        endPos: pos.clone(),
+        startTarget: controls.target.clone(),
+        endTarget: target.clone(),
+        startTime: performance.now(),
+        duration: durationMs
+      };
+    }
+
+    // Compute a crisp 3/4 front close-up relative to the antenna's LIVE pan/tilt angle!
+    function getLiveAntennaFrontCamera() {
+      const fwd = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(tiltAxis.pos * D2R, -(panAxis.pos + HEADING_DEG) * D2R, 0, 'YXZ'));
+      const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), -(panAxis.pos + HEADING_DEG) * D2R);
+      const pos = fwd.clone().multiplyScalar(1.32).addScaledVector(right, 0.68).add(new THREE.Vector3(0, 0.26, 0));
+      return {
+        pos,
+        target: new THREE.Vector3(0, -0.12, 0)
+      };
+    }
+
+    function focusPart(partId) {
+      const def = calloutDefs.find(d => d.id === partId);
+      if (!def) return;
+      document.querySelectorAll('.hw-node').forEach(n => n.classList.toggle('selected', n.dataset.part === partId));
+      document.querySelectorAll('.callout').forEach(c => c.classList.toggle('active', c.dataset.part === partId));
+
+      if (def.camMode === 'antennaFront') {
+        const c = getLiveAntennaFrontCamera();
+        animateCameraTo(c.pos, c.target, 600);
+      } else {
+        animateCameraTo(def.camOffset, def.lookOffset, 600);
+      }
+    }
+
+    document.querySelectorAll('.hw-node').forEach(node => {
+      node.addEventListener('click', () => focusPart(node.dataset.part));
+    });
+
+    document.querySelectorAll('[data-cam]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('[data-cam]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.dataset.cam;
+        if (mode === 'hero') {
+          animateCameraTo(new THREE.Vector3(1.75, 0.42, 1.38), new THREE.Vector3(0.18, -0.22, -0.18), 700);
+        } else if (mode === 'antenna') {
+          const c = getLiveAntennaFrontCamera();
+          animateCameraTo(c.pos, c.target, 700);
+        } else if (mode === 'overview') {
+          animateCameraTo(new THREE.Vector3(6.5, 4.2, 8.5), new THREE.Vector3(0, 1.0, -18.0), 700);
+        }
+      });
+    });
+
+    const btnExplode = document.getElementById('btn-explode');
+    btnExplode.addEventListener('click', () => {
+      explodedMode = !explodedMode;
+      btnExplode.textContent = `Exploded View: ${explodedMode ? 'ON' : 'OFF'}`;
+      btnExplode.classList.toggle('active', explodedMode);
+    });
+
+    const btnLabels = document.getElementById('btn-labels');
+    btnLabels.addEventListener('click', () => {
+      showCallouts = !showCallouts;
+      btnLabels.textContent = `3D Callouts: ${showCallouts ? 'ON' : 'OFF'}`;
+      btnLabels.classList.toggle('active', showCallouts);
+      labelsLayer.style.display = showCallouts ? 'block' : 'none';
+    });
+
+    // =========================================================================
+    // 9. Figure-8 Flight Path & Drone Mesh
+    // =========================================================================
+    const pathPts = [];
+    const groundProjPts = [];
+    const PATH_SAMPLES = 256;
+    for (let i = 0; i <= PATH_SAMPLES; i++) {
+      const t = (i / PATH_SAMPLES) * Math.PI * 2;
+      const s = sampleFigure8(t);
+      const p3 = enuToScene(s.pos);
+      pathPts.push(p3);
+      groundProjPts.push(new THREE.Vector3(p3.x, GROUND_Y + 0.06, p3.z));
+    }
+
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(pathPts),
+      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45 })
+    ));
+
+    scene.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(groundProjPts),
+      new THREE.LineBasicMaterial({ color: 0x1e3a5f, transparent: true, opacity: 0.45 })
+    ));
+
+    const droneGroup = new THREE.Group();
+    scene.add(droneGroup);
+
+    droneGroup.add(new THREE.Mesh(
+      new THREE.BoxGeometry(0.95, 0.32, 1.35),
+      new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3, metalness: 0.35 })
+    ));
+
+    const droneCanopy = new THREE.Mesh(
+      new THREE.BoxGeometry(0.65, 0.22, 0.72),
+      new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.2, metalness: 0.5 })
+    );
+    droneCanopy.position.set(0, 0.2, -0.15);
+    droneGroup.add(droneCanopy);
+
+    const rotors = [];
+    const rotorMat = new THREE.MeshBasicMaterial({
+      color: 0x94a3b8,
+      transparent: true,
+      opacity: 0.55,
+      side: THREE.DoubleSide
+    });
+    for (const [ax, az] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      const arm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.1, 1.8),
+        new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.6, roughness: 0.4 })
+      );
+      arm.rotation.y = (ax * az > 0) ? -Math.PI / 4 : Math.PI / 4;
+      arm.position.set(ax * 0.55, 0, az * 0.55);
+      droneGroup.add(arm);
+
+      const hubM = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 0.18, 12),
+        new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.7, roughness: 0.3 })
+      );
+      hubM.position.set(ax * 1.15, 0.12, az * 1.15);
+      droneGroup.add(hubM);
+
+      const rotor = new THREE.Mesh(new THREE.CircleGeometry(0.62, 20), rotorMat);
+      rotor.rotation.x = -Math.PI / 2;
+      rotor.position.set(ax * 1.15, 0.22, az * 1.15);
+      droneGroup.add(rotor);
+      rotors.push(rotor);
+    }
+
+    const markerGroup = new THREE.Group();
+    droneGroup.add(markerGroup);
+    markerGroup.add(new THREE.Mesh(
+      new THREE.RingGeometry(0.85, 1.05, 32),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.85 })
+    ));
+
+    const dropLineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(0, 1, 0)
+    ]);
+    const dropLine = new THREE.Line(
+      dropLineGeo,
+      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.3 })
+    );
+    scene.add(dropLine);
+
+    // =========================================================================
+    // 10. UI Controls & Live Panel Elements
+    // =========================================================================
+    const elBadge       = document.getElementById('link-badge');
+    const elBtnPred     = document.getElementById('btn-pred');
+    const elSlider      = document.getElementById('speed-slider');
+    const elSpeedVal    = document.getElementById('speed-val');
+    const elBtnCut      = document.getElementById('btn-cut');
+
+    const elAz          = document.getElementById('val-az');
+    const elEl          = document.getElementById('val-el');
+    const elRange       = document.getElementById('val-range');
+    const elZenith      = document.getElementById('val-zenith');
+    const elPan         = document.getElementById('val-pan');
+    const elTilt        = document.getElementById('val-tilt');
+    const elPanSteps    = document.getElementById('val-pan-steps');
+    const elTiltSteps   = document.getElementById('val-tilt-steps');
+    const elErr         = document.getElementById('val-err');
+    const elLoss        = document.getElementById('val-loss');
+    const elRxOmni      = document.getElementById('val-rx-omni');
+    const elRxTrack     = document.getElementById('val-rx-track');
+    const elFmOmni      = document.getElementById('val-fm-omni');
+    const elFmTrack     = document.getElementById('val-fm-track');
+
+    const elPktInd      = document.getElementById('pkt-indicator');
+    const elHwTiltSub   = document.getElementById('hw-tilt-sub');
+    const elHwPanSub    = document.getElementById('hw-pan-sub');
+    const elHwRadioSub  = document.getElementById('hw-radio-sub');
+    const elHwRadioDot  = document.getElementById('hw-radio-dot');
+
+    elBtnPred.addEventListener('click', () => {
+      predictionOn = !predictionOn;
+      elBtnPred.textContent = predictionOn ? 'ON' : 'OFF';
+      elBtnPred.className = `btn-toggle ${predictionOn ? 'on' : 'off'}`;
+    });
+
+    elSlider.addEventListener('input', () => {
+      droneSpeedMs = Number(elSlider.value);
+      const kmh = Math.round(droneSpeedMs * 3.6);
+      elSpeedVal.textContent = `${droneSpeedMs} m/s (${kmh} km/h)`;
+    });
+
+    elBtnCut.addEventListener('click', () => {
+      telemetryCut = !telemetryCut;
+      if (telemetryCut) {
+        cutStartMs = simTimeMs;
+        telemQueue.length = 0;
+        elBtnCut.textContent = 'Restore Telemetry';
+        elBtnCut.classList.add('active');
+      } else {
+        nextTelemTxMs = simTimeMs;
+        elBtnCut.textContent = 'Cut Telemetry';
+        elBtnCut.classList.remove('active');
+      }
+    });
+
+    // =========================================================================
+    // 11. Main Simulation & Render Loop
+    // =========================================================================
+    let lastPerfMs = performance.now();
+    const tmpProj = new THREE.Vector3();
+
+    function enuUnitVec(azDeg, elDeg) {
+      const azR = azDeg * D2R;
+      const elR = elDeg * D2R;
+      const cEl = Math.cos(elR);
+      return {
+        e: cEl * Math.sin(azR),
+        n: cEl * Math.cos(azR),
+        u: Math.sin(elR)
+      };
+    }
+
+    function marginClass(marginDb) {
+      if (marginDb >= 10.0) return 'c-good';
+      if (marginDb >= 0.0)  return 'c-warn';
+      return 'c-bad';
+    }
+
+    function animate(nowMs) {
+      requestAnimationFrame(animate);
+
+      const dtSec = Math.min((nowMs - lastPerfMs) / 1000.0, 0.1);
+      lastPerfMs = nowMs;
+      simTimeMs += dtSec * 1000.0;
+      beamUniforms.uTime.value = simTimeMs / 1000.0;
+
+      if (camAnim) {
+        const u = Math.min(1.0, (nowMs - camAnim.startTime) / camAnim.duration);
+        const ease = 1 - Math.pow(1 - u, 3);
+        camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
+        controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, ease);
+        if (u >= 1.0) camAnim = null;
+      }
+
+      // Exploded view smooth animation
+      const targetExplode = explodedMode ? 1.0 : 0.0;
+      explodeLerp += (targetExplode - explodeLerp) * Math.min(1.0, dtSec * 8.0);
+      radomeGroup.position.z = -0.062 - explodeLerp * 0.25;
+      patchSubstrate.position.z = -0.01 - explodeLerp * 0.08;
+      elecLid.position.y = 0.065 + explodeLerp * 0.19;
+      gpsGroup.position.y = BASE_Y + 0.24 + explodeLerp * 0.22;
+      tiltEncoderGroup.position.x = -YOKE_HALF_W - 0.085 - explodeLerp * 0.14;
+
+      // 1) Advance drone
+      const stepSample = sampleFigure8(theta);
+      const dsDtheta = Math.hypot(stepSample.dPos.e, stepSample.dPos.n, stepSample.dPos.u);
+      theta = (theta + (droneSpeedMs / dsDtheta) * dtSec) % (Math.PI * 2);
+
+      const curSample = sampleFigure8(theta);
+      const curLen = Math.hypot(curSample.dPos.e, curSample.dPos.n, curSample.dPos.u);
+      const trueENU = curSample.pos;
+      const trueVel = {
+        e: (curSample.dPos.e / curLen) * droneSpeedMs,
+        n: (curSample.dPos.n / curLen) * droneSpeedMs,
+        u: (curSample.dPos.u / curLen) * droneSpeedMs
+      };
+
+      // 2) Simulated 5 Hz telemetry with 300 ms latency
+      while (simTimeMs >= nextTelemTxMs) {
+        if (!telemetryCut) {
+          telemQueue.push({
+            g: enuToGeo(GROUND, trueENU),
+            v: { ...trueVel },
+            tSampleMs: nextTelemTxMs,
+            tDeliverMs: nextTelemTxMs + TELEM_LATENCY_MS
+          });
+        }
+        nextTelemTxMs += TELEM_INTERVAL_MS;
+      }
+
+      while (telemQueue.length > 0 && simTimeMs >= telemQueue[0].tDeliverMs) {
+        const pkt = telemQueue.shift();
+        if (!telemetryCut) {
+          drone.g = pkt.g;
+          drone.v = pkt.v;
+          drone.tSampleMs = pkt.tSampleMs;
+          drone.rxMs = simTimeMs;
+          drone.ok = true;
+        }
+      }
+
+      // 3) 20 Hz aim update
+      while (simTimeMs >= nextAimMs) {
+        aimTick();
+        nextAimMs += AIM_INTERVAL_MS;
+      }
+
+      // 4) Stepper motion update
+      stepAxis(panAxis, targetPan, dtSec, -180.0, 180.0);
+      stepAxis(tiltAxis, targetTilt, dtSec, 0.0, 90.0);
+
+      // 5) Articulation transforms (5:1 GT2 pinion rotation)
+      const panRad = -(panAxis.pos + HEADING_DEG) * D2R;
+      const tiltRad = tiltAxis.pos * D2R;
+      panGroup.rotation.y = panRad;
+      tiltGroup.rotation.x = tiltRad;
+      panPulley.rotation.y = panRad;
+      panPinionMesh.rotation.y = panRad * 5.0;
+      tiltPinionMesh.rotation.x = tiltRad * 5.0;
+
+      // Status LEDs & Radio pulse
+      const rxAgeS = (simTimeMs - drone.rxMs) / 1000.0;
+      if (!telemetryCut && rxAgeS < 0.22) {
+        const pulse = 1.0 + (rxAgeS / 0.22) * 2.4;
+        radioPulseRing.scale.setScalar(pulse);
+        radioPulseRing.material.opacity = 0.85 * (1.0 - rxAgeS / 0.22);
+        radioPulseRing.visible = true;
+        espLedMat.color.setHex(0x38bdf8);
+      } else {
+        radioPulseRing.visible = false;
+        espLedMat.color.setHex(telemetryCut ? 0xef4444 : 0x0ea5e9);
+      }
+      gpsLedMat.color.setHex((Math.floor(simTimeMs / 500) % 2 === 0) ? 0x22c55e : 0x14532d);
+
+      // Drone mesh transform
+      const dronePos3 = enuToScene(trueENU);
+      droneGroup.position.copy(dronePos3);
+      droneGroup.lookAt(enuToScene({
+        e: trueENU.e + trueVel.e,
+        n: trueENU.n + trueVel.n,
+        u: trueENU.u + trueVel.u
+      }));
+
+      for (const r of rotors) r.rotation.z += dtSec * 36.0;
+
+      const camDist = camera.position.distanceTo(dronePos3);
+      markerGroup.scale.setScalar(Math.max(1.0, camDist * 0.024));
+      markerGroup.quaternion.copy(droneGroup.quaternion).invert().multiply(camera.quaternion);
+
+      const dropPos = dropLine.geometry.attributes.position.array;
+      dropPos[0] = dronePos3.x; dropPos[1] = GROUND_Y + 0.06; dropPos[2] = dronePos3.z;
+      dropPos[3] = dronePos3.x; dropPos[4] = dronePos3.y;      dropPos[5] = dronePos3.z;
+      dropLine.geometry.attributes.position.needsUpdate = true;
+
+      const trueAim = aimAt(trueENU);
+      const beamLen = Math.max(12.0, trueAim.range * SCALE);
+      beamCone.scale.setScalar(beamLen);
+      beamAxis.scale.setScalar(beamLen);
+      beamRim.scale.setScalar(beamLen);
+
+      // 6) Pointing Error, Pointing Loss & Link Budget
+      const antAzDeg = panAxis.pos + HEADING_DEG;
+      const antElDeg = tiltAxis.pos;
+      const bVec = enuUnitVec(antAzDeg, antElDeg);
+      const dVec = enuUnitVec(trueAim.az, trueAim.el);
+      const dot  = Math.max(-1.0, Math.min(1.0, bVec.e * dVec.e + bVec.n * dVec.n + bVec.u * dVec.u));
+      const pointingErrDeg = Math.acos(dot) / D2R;
+      const pointingLossDb = 12.0 * Math.pow(pointingErrDeg / BEAMWIDTH_DEG, 2);
+
+      const dKm = Math.max(trueAim.range, 1.0) / 1000.0;
+      const fsplDb = 20.0 * Math.log10(dKm) + 20.0 * Math.log10(FREQ_MHZ) + 32.44;
+      const rxOmniDbm  = TX_POWER_DBM + DRONE_ANT_DBI + OMNI_GND_DBI + CABLE_MISC_DB - fsplDb;
+      const rxTrackDbm = TX_POWER_DBM + DRONE_ANT_DBI + TRACK_GND_DBI + CABLE_MISC_DB - fsplDb - pointingLossDb;
+      const fmOmniDb   = rxOmniDbm - RX_SENS_DBM;
+      const fmTrackDb  = rxTrackDbm - RX_SENS_DBM;
+
+      let beamHex = 0x38bdf8;
+      if (linkState === 'LOST') {
+        beamHex = 0xef4444;
+      } else if (linkState === 'COASTING') {
+        beamHex = 0xf59e0b;
+      } else if (pointingErrDeg <= 5.0) {
+        beamHex = 0x22c55e;
+      }
+      beamUniforms.uColor.value.setHex(beamHex);
+      axisMat.color.setHex(beamHex);
+      beamRimMat.color.setHex(beamHex);
+
+      // 7) Update HUD
+      if (linkState === 'TRACKING') {
+        elBadge.textContent = 'TRACKING';
+        elBadge.className = 'badge tracking';
+        elPktInd.textContent = `MAVLink GLOBAL_POSITION_INT · 5 Hz (${Math.round((simTimeMs - drone.tSampleMs))} ms age)`;
+        elPktInd.style.color = '#7dd3fc';
+        elHwRadioSub.textContent = `915 MHz Omni · 5 Hz OK`;
+        elHwRadioDot.style.background = '#22c55e';
+      } else if (linkState === 'COASTING') {
+        const left = Math.max(0, COAST_MAX_S - coastElapsedS);
+        elBadge.textContent = `COASTING ${left.toFixed(1)}s`;
+        elBadge.className = 'badge coasting';
+        elPktInd.textContent = `TELEMETRY GAP · Dead-Reckoning (${left.toFixed(1)}s left)`;
+        elPktInd.style.color = '#fde68a';
+        elHwRadioSub.textContent = `NO PACKETS · Coasting`;
+        elHwRadioDot.style.background = '#f59e0b';
+      } else {
+        elBadge.textContent = 'LINK LOST';
+        elBadge.className = 'badge lost';
+        elPktInd.textContent = `LINK LOST (>5.0s Gap) · Holding Last Aim`;
+        elPktInd.style.color = '#fca5a5';
+        elHwRadioSub.textContent = `LINK LOST · Hold Mode`;
+        elHwRadioDot.style.background = '#ef4444';
+      }
+
+      elAz.textContent    = `${aim.az.toFixed(1)}°`;
+      elEl.textContent    = `${aim.el.toFixed(1)}°`;
+      elRange.textContent = `${Math.round(aim.range)} m`;
+      elZenith.textContent = (aim.el >= ZENITH_HOLD_EL) ? 'ZENITH AZ HOLD (>85°)' : '';
+
+      elPan.textContent   = `${panAxis.pos.toFixed(1)}°`;
+      elTilt.textContent  = `${tiltAxis.pos.toFixed(1)}°`;
+
+      elPanSteps.textContent  = `${Math.round(panAxis.pos * STEPS_PER_DEG)} steps · ${Math.abs(panAxis.vel).toFixed(1)}°/s`;
+      elTiltSteps.textContent = `${Math.round(tiltAxis.pos * STEPS_PER_DEG)} steps · ${Math.abs(tiltAxis.vel).toFixed(1)}°/s`;
+
+      const panRaw4096  = Math.round((((panAxis.pos % 360) + 360) % 360) * (4096 / 360)) & 0x0FFF;
+      const tiltRaw4096 = Math.round((((tiltAxis.pos % 360) + 360) % 360) * (4096 / 360)) & 0x0FFF;
+      elHwPanSub.textContent  = `5:1 GT2 · AS5600: ${panRaw4096}/4096`;
+      elHwTiltSub.textContent = `5:1 GT2 · AS5600: ${tiltRaw4096}/4096`;
+
+      elErr.textContent   = `${pointingErrDeg.toFixed(2)}°`;
+      elErr.className     = `stat-v ${pointingErrDeg <= 5 ? 'c-good' : (pointingErrDeg <= 15 ? 'c-warn' : 'c-bad')}`;
+      elLoss.textContent  = `${pointingLossDb.toFixed(2)} dB`;
+
+      elRxOmni.textContent  = `${rxOmniDbm.toFixed(1)} dBm`;
+      elRxTrack.textContent = `${rxTrackDbm.toFixed(1)} dBm`;
+
+      elFmOmni.textContent  = `${fmOmniDb >= 0 ? '+' : ''}${fmOmniDb.toFixed(1)} dB`;
+      elFmOmni.className    = `num ${marginClass(fmOmniDb)}`;
+      elFmTrack.textContent = `${fmTrackDb >= 0 ? '+' : ''}${fmTrackDb.toFixed(1)} dB`;
+      elFmTrack.className   = `num ${marginClass(fmTrackDb)}`;
+
+      controls.update();
+      renderer.render(scene, camera);
+
+      if (showCallouts) {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        for (const def of calloutDefs) {
+          def.anchor.getWorldPosition(tmpProj);
+          tmpProj.project(camera);
+          if (tmpProj.z > 1.0 || tmpProj.z < -1.0) {
+            def.el.style.display = 'none';
+            continue;
+          }
+          const sx = (tmpProj.x * 0.5 + 0.5) * w;
+          const sy = (-tmpProj.y * 0.5 + 0.5) * h;
+          if (sx < 40 || sx > w - 370 || sy < 80 || sy > h - 95) {
+            def.el.style.display = 'none';
+          } else {
+            def.el.style.display = 'block';
+            def.el.style.left = `${sx}px`;
+            def.el.style.top = `${sy}px`;
+          }
+        }
+      }
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
