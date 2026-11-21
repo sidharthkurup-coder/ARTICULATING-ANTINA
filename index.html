@@ -13,13 +13,23 @@
     input[type="range"] { accent-color: #2563eb; }
     #viewport-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
     #viewport-canvas:active { cursor: grabbing; }
+    .callout-pin {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .callout-pin:hover {
+      transform: translate(-50%, -50%) scale(1.06);
+      z-index: 25;
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
   <!-- Top Command Bar -->
   <header class="border-b border-slate-800 bg-slate-900/95 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
     <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center font-extrabold text-xs tracking-tight shadow">2.4G</div>
+      <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center font-extrabold text-xs tracking-tight shadow-md shadow-blue-900/40">2.4G</div>
       <div>
         <h1 class="text-sm sm:text-base font-bold text-white leading-tight">ARTEMIS Dual 2.4 GHz Articulating Antenna Suite</h1>
         <p class="text-[11px] text-slate-400">High-Detail 3D CAD &amp; Real-World RF Mission Simulator &middot; Helical (24H) &amp; Yagi-Uda (24Y)</p>
@@ -42,48 +52,53 @@
   <!-- Main Workspace -->
   <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-0">
     <!-- 3D Viewport -->
-    <section class="lg:col-span-8 relative bg-slate-950 min-h-[440px] lg:min-h-[620px] border-b lg:border-b-0 lg:border-r border-slate-800">
+    <section class="lg:col-span-8 relative bg-slate-950 min-h-[460px] lg:min-h-[640px] border-b lg:border-b-0 lg:border-r border-slate-800 overflow-hidden">
       <div id="viewport-container" class="absolute inset-0">
         <canvas id="viewport-canvas"></canvas>
       </div>
 
+      <!-- Projected 3D CAD Callout Pins Layer -->
+      <div id="callout-layer" class="absolute inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
       <!-- Camera & Visual Toggles (Top Left) -->
-      <div class="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
-        <button data-view="iso" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Iso</button>
-        <button data-view="detail" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Close-Up CAD</button>
-        <button data-view="side" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Side</button>
-        <button data-view="top" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Top</button>
-        <button id="btn-beam" class="px-2.5 py-1 rounded text-xs font-medium bg-blue-600/90 hover:bg-blue-500 border border-blue-500 text-white">RF Beam: On</button>
-        <button id="btn-tripod" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Tripod: On</button>
-        <button id="btn-radome" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Radome: Glass</button>
-        <button id="btn-wireframe" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200">Wireframe</button>
+      <div class="absolute top-3 left-3 flex flex-wrap gap-1.5 z-20 max-w-[calc(100%-24px)]">
+        <button data-view="iso" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Iso</button>
+        <button data-view="detail" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Close-Up CAD</button>
+        <button data-view="side" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Side</button>
+        <button data-view="top" class="view-btn px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Top</button>
+        <button id="btn-beam" class="px-2.5 py-1 rounded text-xs font-medium bg-blue-600/90 hover:bg-blue-500 border border-blue-500 text-white backdrop-blur-sm">RF Beam: On</button>
+        <button id="btn-tripod" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Tripod: On</button>
+        <button id="btn-radome" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Radome: Glass</button>
+        <button id="btn-callouts" class="px-2.5 py-1 rounded text-xs font-medium bg-blue-600/90 hover:bg-blue-500 border border-blue-500 text-white backdrop-blur-sm">3D Callouts: On</button>
+        <button id="btn-wireframe" class="px-2.5 py-1 rounded text-xs font-medium bg-slate-900/85 hover:bg-slate-800 border border-slate-700 text-slate-200 backdrop-blur-sm">Wireframe</button>
       </div>
 
       <!-- Mission Context Banner (Top Right) -->
-      <div id="mission-badge" class="absolute top-12 right-3 max-w-xs bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-xs z-10">
-        <div id="mission-title" class="font-semibold text-emerald-400">Mission: Agile Banking UAV Link</div>
-        <div id="mission-desc" class="text-[11px] text-slate-300 mt-0.5 leading-snug">Tracking 3D figure-8 UAV flight. RHCP eliminates cross-polarization dropouts during steep banks.</div>
+      <div id="mission-badge" class="absolute top-12 right-3 max-w-xs bg-slate-900/90 border border-slate-700 rounded-lg px-3 py-2 text-xs z-20 backdrop-blur-sm shadow-lg">
+        <div id="mission-title" class="font-semibold text-emerald-400">Mission: Agile Banking UAV Telemetry Link</div>
+        <div id="mission-desc" class="text-[11px] text-slate-300 mt-0.5 leading-snug">Tracking 3D figure-8 UAV corridor with 300ms dead-reckoning. RHCP maintains 0 dB roll-fade.</div>
       </div>
 
       <!-- Subsystem Callout (Appears when inspecting a part) -->
-      <div id="part-callout" class="hidden absolute bottom-16 right-3 max-w-xs bg-slate-900/95 border border-blue-500/60 rounded-lg p-3 text-xs z-10 shadow-lg">
+      <div id="part-callout" class="hidden absolute bottom-16 right-3 max-w-xs bg-slate-900/95 border border-blue-500/70 rounded-lg p-3 text-xs z-20 shadow-xl backdrop-blur-sm">
         <div class="flex items-center justify-between gap-2">
           <span id="callout-title" class="font-semibold text-blue-300">Subsystem</span>
-          <button id="btn-clear-part" class="text-slate-400 hover:text-white text-sm leading-none">&times;</button>
+          <button id="btn-clear-part" class="text-slate-400 hover:text-white text-sm leading-none px-1">&times;</button>
         </div>
         <p id="callout-desc" class="text-slate-300 mt-1 leading-relaxed"></p>
       </div>
 
       <!-- Bottom Live Telemetry HUD -->
-      <div class="absolute bottom-3 left-3 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-2 text-xs mono text-slate-300 pointer-events-none">
+      <div class="absolute bottom-3 left-3 bg-slate-900/90 border border-slate-800 rounded-lg px-3 py-2 text-xs mono text-slate-300 pointer-events-none z-20 backdrop-blur-sm">
         <div class="flex flex-wrap gap-x-3 gap-y-0.5">
           <span>AZ: <strong id="hud-az" class="text-blue-400">+0.0&deg;</strong></span>
           <span>EL: <strong id="hud-el" class="text-emerald-400">+25.0&deg;</strong></span>
           <span>POL: <strong id="hud-pol" class="text-violet-400">RHCP</strong></span>
           <span>ERR: <strong id="hud-err" class="text-amber-400">0.4&deg;</strong></span>
           <span>RSSI: <strong id="hud-rssi" class="text-emerald-300">-68.2 dBm</strong></span>
+          <span id="hud-zenith" class="hidden text-amber-400 font-semibold">[ZENITH AZ HOLD]</span>
         </div>
-        <div class="text-[10px] text-slate-400 mt-0.5">Drag: Orbit &middot; Right-Drag / Shift+Drag: Pan &middot; Scroll: Zoom</div>
+        <div class="text-[10px] text-slate-400 mt-0.5">Drag: Orbit &middot; Right-Drag / Shift+Drag: Pan &middot; Scroll: Zoom &middot; Click Pins: Inspect CAD</div>
       </div>
     </section>
 
@@ -96,7 +111,7 @@
       </div>
 
       <!-- TAB 1: Live Usage & RF Link Budget -->
-      <div id="tab-live" class="tab-panel p-4 space-y-4 overflow-y-auto flex-1 text-xs">
+      <div id="tab-live" class="tab-panel p-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
         <!-- Mission Controls -->
         <div class="bg-slate-800/60 border border-slate-700/70 rounded-lg p-3 space-y-2.5">
           <div class="flex items-center justify-between">
@@ -152,6 +167,21 @@
             <div class="w-full h-2 rounded-full bg-slate-950 overflow-hidden">
               <div id="rssi-bar" class="h-full bg-emerald-500 transition-all duration-150" style="width: 78%;"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- Rolling RF Performance Telemetry Graph -->
+        <div class="bg-slate-800/60 border border-slate-700/70 rounded-lg p-3 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <span id="graph-title" class="font-semibold text-slate-200 uppercase tracking-wider text-[10px]">Cross-Pol Fade: RHCP vs Linear Baseline</span>
+            <span id="graph-legend" class="text-[10px] mono text-slate-400">0 to -20 dB</span>
+          </div>
+          <div class="relative w-full h-28 bg-slate-950 rounded border border-slate-800 overflow-hidden">
+            <canvas id="rf-graph" class="w-full h-full block"></canvas>
+          </div>
+          <div id="graph-caption" class="flex items-center justify-between text-[10px] text-slate-400">
+            <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-0.5 bg-emerald-400"></span><span id="leg-primary">ARTEMIS-24H RHCP (0 dB)</span></span>
+            <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-0.5 bg-amber-400"></span><span id="leg-secondary">Linear Baseline Roll Fade</span></span>
           </div>
         </div>
 
@@ -230,17 +260,24 @@
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-800 text-slate-300 text-[11px]">
-            <tr><td class="py-1.5 text-slate-400">Frequency</td><td class="mono">2.45 GHz</td><td class="mono">2.45 GHz</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Band / f<sub>0</sub></td><td class="mono">2.45 GHz (&lambda;=122.4 mm)</td><td class="mono">2.45 GHz (&lambda;=122.4 mm)</td></tr>
             <tr><td class="py-1.5 text-slate-400">Gain / HPBW</td><td class="mono">12.5 dBi / 41&deg;</td><td class="mono">13.0 dBi / 38&deg;</td></tr>
-            <tr><td class="py-1.5 text-slate-400">Polarization</td><td>Circular (RHCP)</td><td>Linear (V/H Ring)</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Polarization</td><td>Circular (RHCP)</td><td>Linear (0&deg;&ndash;90&deg; V/H)</td></tr>
             <tr><td class="py-1.5 text-slate-400">F/B Ratio</td><td class="mono">~15 dB</td><td class="mono">&gt;18 dB</td></tr>
-            <tr><td class="py-1.5 text-slate-400">Envelope</td><td class="mono">&Oslash;68&times;225 mm</td><td class="mono">264 mm boom</td></tr>
-            <tr><td class="py-1.5 text-slate-400">Best Usage</td><td>Banking UAVs</td><td>Long-Range Relays</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Radiator</td><td>7-Turn &Oslash;39 mm Cu</td><td>9-Elem &Oslash;3.2 mm Brass</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Envelope</td><td class="mono">&Oslash;68&times;225 mm ASA</td><td class="mono">15&times;15&times;264 mm Boom</td></tr>
+            <tr><td class="py-1.5 text-slate-400">U-Fork Height</td><td class="mono">82 mm Compact</td><td class="mono">122 mm Zenith Clear</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Gimbal Drive</td><td colspan="2" class="mono">2&times; NEMA 17 &middot; 3:1 GT2 &middot; AS5600</td></tr>
+            <tr><td class="py-1.5 text-slate-400">Best Usage</td><td>Agile Banking UAVs</td><td>Long-Range Relays</td></tr>
           </tbody>
         </table>
         <div class="bg-slate-800/50 border border-slate-700/60 rounded-lg p-3 text-[11px] text-slate-300 leading-relaxed">
-          <div class="font-semibold text-white mb-1">Exact Firmware Math Port (`tracker_math.h`)</div>
+          <div class="font-semibold text-white mb-1">Exact Firmware Math Port (<span class="mono text-blue-300">firmware/tracker_math.h</span>)</div>
           Computes spherical pointing vectors via <span class="mono text-blue-300">toENU()</span>, <span class="mono text-blue-300">predict(p, v, 0.30)</span> dead-reckoning, curvature-corrected <span class="mono text-blue-300">aimAt()</span>, and <span class="mono text-blue-300">wrap180()</span> with zenith azimuth hold above 85&deg;.
+        </div>
+        <div class="bg-slate-800/50 border border-slate-700/60 rounded-lg p-3 text-[11px] text-slate-300 leading-relaxed">
+          <div class="font-semibold text-white mb-1">Parametric CAD &amp; STL Exports</div>
+          Matching watertight meshes and OpenSCAD sources are included in <span class="mono text-emerald-300">cad/artemis_24ghz_helical_tracker.*</span> and <span class="mono text-amber-300">cad/artemis_24ghz_yagi_tracker.*</span>.
         </div>
       </div>
     </aside>
@@ -248,13 +285,21 @@
 
   <script>
     // =========================================================================
-    // 1. EXACT PORT OF tracker_math.h
+    // 1. EXACT PORT OF firmware/tracker_math.h
     // =========================================================================
     const R_EARTH = 6371000.0;
     const D2R = Math.PI / 180.0;
     function wrap180(a) {
       let r = ((a + 180.0) % 360.0 + 360.0) % 360.0;
       return r - 180.0;
+    }
+    function toENU(g, d) {
+      const mlat = 0.5 * (g.lat + d.lat) * D2R;
+      return {
+        e: (d.lon - g.lon) * D2R * Math.cos(mlat) * R_EARTH,
+        n: (d.lat - g.lat) * D2R * R_EARTH,
+        u: d.alt - g.alt
+      };
     }
     function predict(p, v, dt) {
       return { e: p.e + v.e * dt, n: p.n + v.n * dt, u: p.u + v.u * dt };
@@ -268,60 +313,188 @@
     }
 
     // =========================================================================
-    // 2. THREE.JS SCENE, LIGHTING & MATERIALS
+    // 2. THREE.JS SCENE, STUDIO PMREM ENVIRONMENT, LIGHTING & PBR MATERIALS
     // =========================================================================
     const canvas = document.getElementById('viewport-canvas');
     const container = document.getElementById('viewport-container');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0x070b14, 1);
+    renderer.setClearColor(0x060a12, 1);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.18;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x070b14, 0.00042);
-    const camera = new THREE.PerspectiveCamera(42, 1, 1, 4500);
+    scene.fog = new THREE.FogExp2(0x060a12, 0.00038);
+    const camera = new THREE.PerspectiveCamera(42, 1, 1, 4800);
 
-    scene.add(new THREE.AmbientLight(0xdbeafe, 0.58));
-    const keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    keyLight.position.set(280, 420, 300);
+    // Procedural Studio PMREM Environment Map for crisp metallic reflections (Zero external assets)
+    (function buildStudioEnvironment() {
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      const envScene = new THREE.Scene();
+      envScene.background = new THREE.Color(0x0d1526);
+
+      const stripGeo = new THREE.PlaneGeometry(40, 12);
+      const topPanel = new THREE.Mesh(new THREE.PlaneGeometry(50, 50), new THREE.MeshBasicMaterial({ color: 0xe0f2fe, side: THREE.DoubleSide }));
+      topPanel.position.set(0, 26, 0);
+      topPanel.rotation.x = Math.PI / 2;
+      envScene.add(topPanel);
+
+      const keyStrip = new THREE.Mesh(stripGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }));
+      keyStrip.position.set(22, 10, 20);
+      keyStrip.lookAt(0, 0, 0);
+      envScene.add(keyStrip);
+
+      const coolStrip = new THREE.Mesh(stripGeo, new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide }));
+      coolStrip.position.set(-26, 8, -16);
+      coolStrip.lookAt(0, 0, 0);
+      envScene.add(coolStrip);
+
+      const warmStrip = new THREE.Mesh(stripGeo, new THREE.MeshBasicMaterial({ color: 0xfde68a, side: THREE.DoubleSide }));
+      warmStrip.position.set(16, -6, -24);
+      warmStrip.lookAt(0, 0, 0);
+      envScene.add(warmStrip);
+
+      const envRT = pmrem.fromScene(envScene, 0.04);
+      scene.environment = envRT.texture;
+      pmrem.dispose();
+    })();
+
+    // Studio Light Rig
+    scene.add(new THREE.HemisphereLight(0xdbeafe, 0x0f172a, 0.55));
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+    keyLight.position.set(320, 480, 320);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.camera.near = 60;
+    keyLight.shadow.camera.far = 1400;
+    keyLight.shadow.camera.left = -320;
+    keyLight.shadow.camera.right = 320;
+    keyLight.shadow.camera.top = 380;
+    keyLight.shadow.camera.bottom = -260;
+    keyLight.shadow.bias = -0.0005;
     scene.add(keyLight);
-    const rimLight = new THREE.DirectionalLight(0x60a5fa, 0.50);
-    rimLight.position.set(-280, 180, -240);
+
+    const rimLight = new THREE.DirectionalLight(0x60a5fa, 0.72);
+    rimLight.position.set(-320, 220, -260);
     scene.add(rimLight);
-    const fillLight = new THREE.PointLight(0x38bdf8, 0.35, 900);
-    fillLight.position.set(0, 260, 180);
+
+    const fillLight = new THREE.PointLight(0x38bdf8, 0.45, 950);
+    fillLight.position.set(0, 260, 210);
     scene.add(fillLight);
 
-    // Ground Grid + Range Rings
+    // Ground Plane + Grid + Range Rings
+    const groundShadowMat = new THREE.ShadowMaterial({ opacity: 0.35 });
+    const groundCatcher = new THREE.Mesh(new THREE.CircleGeometry(680, 48), groundShadowMat);
+    groundCatcher.rotation.x = -Math.PI / 2;
+    groundCatcher.position.y = -180.5;
+    groundCatcher.receiveShadow = true;
+    scene.add(groundCatcher);
+
     const grid = new THREE.GridHelper(1600, 40, 0x1e3a5f, 0x111c2e);
     grid.position.y = -180;
     scene.add(grid);
 
     const ringGroup = new THREE.Group();
     ringGroup.position.y = -179;
-    [220, 420, 640].forEach(r => {
-      const rg = new THREE.RingGeometry(r - 1.2, r + 1.2, 64);
-      const rm = new THREE.MeshBasicMaterial({ color: 0x1d4ed8, side: THREE.DoubleSide, transparent: true, opacity: 0.25 });
+    [220, 420, 640].forEach((r, i) => {
+      const rg = new THREE.RingGeometry(r - 1.3, r + 1.3, 72);
+      const rm = new THREE.MeshBasicMaterial({ color: i === 2 ? 0x2563eb : 0x1d4ed8, side: THREE.DoubleSide, transparent: true, opacity: 0.28 });
       const mesh = new THREE.Mesh(rg, rm);
       mesh.rotation.x = Math.PI / 2;
       ringGroup.add(mesh);
     });
     scene.add(ringGroup);
 
-    // PBR Materials
-    const matAnodized = new THREE.MeshStandardMaterial({ color: 0x28303b, metalness: 0.62, roughness: 0.38 });
-    const matDarkAl   = new THREE.MeshStandardMaterial({ color: 0x1a2029, metalness: 0.55, roughness: 0.45 });
-    const matSteel    = new THREE.MeshStandardMaterial({ color: 0xb8c2ce, metalness: 0.82, roughness: 0.24 });
-    const matBrass    = new THREE.MeshStandardMaterial({ color: 0xd9a73e, metalness: 0.85, roughness: 0.20 });
-    const matCopper   = new THREE.MeshStandardMaterial({ color: 0xdc7134, metalness: 0.88, roughness: 0.20 });
-    const matMotor    = new THREE.MeshStandardMaterial({ color: 0x12161f, metalness: 0.35, roughness: 0.62 });
-    const matAccent   = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.52, roughness: 0.30 });
-    const matPcb      = new THREE.MeshStandardMaterial({ color: 0x0f5132, metalness: 0.25, roughness: 0.55 });
-    const matPtfe     = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.05, roughness: 0.55 });
-    const matRubber   = new THREE.MeshStandardMaterial({ color: 0x0f1117, metalness: 0.05, roughness: 0.90 });
-    const matAcrylic  = new THREE.MeshPhysicalMaterial({ color: 0x93c5fd, metalness: 0.05, roughness: 0.15, transparent: true, opacity: 0.22, depthWrite: false });
-    const matRadome   = new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, metalness: 0.05, roughness: 0.16, transparent: true, opacity: 0.26, depthWrite: false });
+    // Upgraded PBR Materials
+    const matAnodized = new THREE.MeshStandardMaterial({ color: 0x293240, metalness: 0.74, roughness: 0.32, envMapIntensity: 1.15 });
+    const matDarkAl   = new THREE.MeshStandardMaterial({ color: 0x181f29, metalness: 0.65, roughness: 0.42, envMapIntensity: 1.0 });
+    const matSteel    = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.90, roughness: 0.20, envMapIntensity: 1.35 });
+    const matChrome   = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.96, roughness: 0.12, envMapIntensity: 1.45 });
+    const matBrass    = new THREE.MeshStandardMaterial({ color: 0xe0b248, metalness: 0.92, roughness: 0.18, envMapIntensity: 1.35 });
+    const matCopper   = new THREE.MeshStandardMaterial({ color: 0xe27538, metalness: 0.94, roughness: 0.16, envMapIntensity: 1.4 });
+    const matMotor    = new THREE.MeshStandardMaterial({ color: 0x12161f, metalness: 0.42, roughness: 0.56, envMapIntensity: 0.85 });
+    const matAccent   = new THREE.MeshStandardMaterial({ color: 0x2563eb, metalness: 0.68, roughness: 0.24, envMapIntensity: 1.25 });
+    const matPcb      = new THREE.MeshStandardMaterial({ color: 0x0f5c39, metalness: 0.22, roughness: 0.45, envMapIntensity: 0.9 });
+    const matPtfe     = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.04, roughness: 0.42, envMapIntensity: 0.7 });
+    const matRubber   = new THREE.MeshStandardMaterial({ color: 0x111319, metalness: 0.05, roughness: 0.88, envMapIntensity: 0.4 });
+    const matAcrylic  = new THREE.MeshPhysicalMaterial({ color: 0x93c5fd, metalness: 0.05, roughness: 0.10, clearcoat: 1.0, clearcoatRoughness: 0.08, transparent: true, opacity: 0.20, depthWrite: false });
+    const matRadome   = new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, metalness: 0.04, roughness: 0.14, clearcoat: 0.85, clearcoatRoughness: 0.12, transparent: true, opacity: 0.26, depthWrite: false, side: THREE.DoubleSide });
 
-    const wireMaterials = [matAnodized, matDarkAl, matSteel, matBrass, matCopper, matMotor, matAccent, matPcb, matPtfe, matRadome];
+    const wireMaterials = [matAnodized, matDarkAl, matSteel, matChrome, matBrass, matCopper, matMotor, matAccent, matPcb, matPtfe, matRadome];
+
+    // Helper: M3 / M4 Socket-Head Cap Screw
+    function createSocketBolt(radius, height) {
+      const g = new THREE.Group();
+      const head = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, height, 12), matChrome);
+      head.position.y = height / 2;
+      g.add(head);
+      const recess = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.52, radius * 0.52, 0.7, 6), matDarkAl);
+      recess.position.y = height + 0.1;
+      g.add(recess);
+      return g;
+    }
+
+    // Helper: Flanged GT2 Timing Pulley with tooth ribs
+    function createGT2Pulley(radius, width, matBody, teethCount) {
+      const g = new THREE.Group();
+      const core = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, width, 32), matBody);
+      g.add(core);
+      // Top & bottom aluminum flanges
+      [-1, 1].forEach(s => {
+        const fl = new THREE.Mesh(new THREE.CylinderGeometry(radius + 2.2, radius + 2.2, 1.3, 32), matSteel);
+        fl.position.y = s * (width / 2 + 0.65);
+        g.add(fl);
+      });
+      // Hub boss
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.46, width + 3.2, 20), matDarkAl);
+      g.add(hub);
+      // Subtle tooth ribs around perimeter
+      const n = teethCount || 24;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.9, width - 0.6, 0.9), matDarkAl);
+        tooth.position.set(Math.cos(a) * radius, 0, Math.sin(a) * radius);
+        tooth.rotation.y = -a;
+        g.add(tooth);
+      }
+      return g;
+    }
+
+    // Helper: Detailed NEMA 17 Stepper Motor (42.3 x 42.3 x len)
+    function createNema17(len) {
+      const g = new THREE.Group();
+      // Black stator core
+      const core = new THREE.Mesh(new THREE.BoxGeometry(42.3, 42.3, len * 0.64), matMotor);
+      g.add(core);
+      // Silver end bells
+      [-1, 1].forEach(s => {
+        const bell = new THREE.Mesh(new THREE.BoxGeometry(42.3, 42.3, len * 0.18), matSteel);
+        bell.position.z = s * (len * 0.41);
+        g.add(bell);
+      });
+      // Front centering pilot ring
+      const pilot = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 2, 24), matSteel);
+      pilot.rotation.x = Math.PI / 2;
+      pilot.position.z = len / 2 + 1;
+      g.add(pilot);
+      // 4 corner M3 bolts
+      [[-15.5, -15.5], [15.5, -15.5], [-15.5, 15.5], [15.5, 15.5]].forEach(([x, y]) => {
+        const b = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, len + 1.5, 8), matChrome);
+        b.rotation.x = Math.PI / 2;
+        b.position.set(x, y, 0);
+        g.add(b);
+      });
+      // Rear 4-pin JST stepper connector block
+      const jst = new THREE.Mesh(new THREE.BoxGeometry(11, 6, 6), matPtfe);
+      jst.position.set(0, -18, -len / 2 + 4);
+      g.add(jst);
+      return g;
+    }
 
     // =========================================================================
     // 3. BUILD HIGH-DETAIL ARTICULATING TRACKER ASSEMBLY (1 unit = 1 mm)
@@ -333,13 +506,18 @@
     const tripodGroup = new THREE.Group();
     trackerRoot.add(tripodGroup);
 
-    const tripodCollar = new THREE.Mesh(new THREE.CylinderGeometry(36, 40, 22, 32), matAnodized);
+    const tripodCollar = new THREE.Mesh(new THREE.CylinderGeometry(36, 40, 22, 36), matAnodized);
     tripodCollar.position.y = -14;
+    tripodCollar.castShadow = true;
     tripodGroup.add(tripodCollar);
 
-    const tripodCenterCol = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 95, 24), matSteel);
-    tripodCenterCol.position.y = -62;
+    const tripodCenterCol = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 98, 24), matSteel);
+    tripodCenterCol.position.y = -63;
     tripodGroup.add(tripodCenterCol);
+
+    const centerColLock = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 10, 24), matAccent);
+    centerColLock.position.y = -28;
+    tripodGroup.add(centerColLock);
 
     const spreaderHub = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 14, 24), matDarkAl);
     spreaderHub.position.y = -105;
@@ -349,19 +527,37 @@
       const ang = (i * 120 + 30) * D2R;
       const legHolder = new THREE.Group();
       legHolder.rotation.y = ang;
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 5.5, 205, 16), matAnodized);
-      leg.position.set(58, -98, 0);
-      leg.rotation.z = 0.42;
-      legHolder.add(leg);
 
-      // Leg lock collar
-      const lock = new THREE.Mesh(new THREE.CylinderGeometry(10, 10, 14, 16), matAccent);
+      // Upper hinge clevis
+      const clevis = new THREE.Mesh(new THREE.BoxGeometry(16, 16, 16), matDarkAl);
+      clevis.position.set(34, -14, 0);
+      legHolder.add(clevis);
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 20, 12), matChrome);
+      pin.rotation.x = Math.PI / 2;
+      pin.position.set(36, -14, 0);
+      legHolder.add(pin);
+
+      // Telescoping aluminum leg (upper + lower tube)
+      const legUpper = new THREE.Mesh(new THREE.CylinderGeometry(8, 7.2, 115, 18), matAnodized);
+      legUpper.position.set(44, -60, 0);
+      legUpper.rotation.z = 0.42;
+      legUpper.castShadow = true;
+      legHolder.add(legUpper);
+
+      const legLower = new THREE.Mesh(new THREE.CylinderGeometry(6.2, 5.5, 105, 18), matSteel);
+      legLower.position.set(78, -135, 0);
+      legLower.rotation.z = 0.42;
+      legLower.castShadow = true;
+      legHolder.add(legLower);
+
+      // Anodized flip-lock collar
+      const lock = new THREE.Mesh(new THREE.CylinderGeometry(10.5, 10.5, 14, 18), matAccent);
       lock.position.set(60, -102, 0);
       lock.rotation.z = 0.42;
       legHolder.add(lock);
 
-      // Rubber foot
-      const foot = new THREE.Mesh(new THREE.CylinderGeometry(7, 9, 10, 16), matRubber);
+      // Rubber foot pad
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(7, 9.5, 10, 18), matRubber);
       foot.position.set(96, -175, 0);
       legHolder.add(foot);
 
@@ -379,29 +575,37 @@
 
     const baseFlange = new THREE.Mesh(new THREE.CylinderGeometry(60, 60, 15, 48), matAnodized);
     baseFlange.position.y = 7.5;
+    baseFlange.castShadow = true;
     baseGroup.add(baseFlange);
 
     const baseChamfer = new THREE.Mesh(new THREE.CylinderGeometry(54, 60, 3, 48), matAnodized);
     baseChamfer.position.y = 16.5;
     baseGroup.add(baseChamfer);
 
-    // 4x M4 Socket Head Bolts on base flange
+    // 4x M4 Socket Head Bolts at 100 mm BCD
     for (let i = 0; i < 4; i++) {
       const a = (i * 90 + 45) * D2R;
-      const bolt = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 4, 12), matSteel);
-      bolt.position.set(Math.cos(a) * 50, 16, Math.sin(a) * 50);
+      const bolt = createSocketBolt(3.4, 3.8);
+      bolt.position.set(Math.cos(a) * 50, 15, Math.sin(a) * 50);
       baseGroup.add(bolt);
     }
 
-    const bearingRace = new THREE.Mesh(new THREE.CylinderGeometry(27, 27, 10, 40), matSteel);
-    bearingRace.position.y = 23;
-    baseGroup.add(bearingRace);
+    // 6808-2RS Slewing Bearing (52 mm OD x 7 mm) with rubber seal ring
+    const bearingOuter = new THREE.Mesh(new THREE.CylinderGeometry(27, 27, 10, 40), matSteel);
+    bearingOuter.position.y = 23;
+    baseGroup.add(bearingOuter);
+    const bearingSeal = new THREE.Mesh(new THREE.RingGeometry(20, 24.8, 36), matRubber);
+    bearingSeal.rotation.x = -Math.PI / 2;
+    bearingSeal.position.y = 28.2;
+    baseGroup.add(bearingSeal);
 
+    // Dual-thread Brass Tripod Bushing (3/8"-16 / 1/4"-20 UNC)
     const brassHead = new THREE.Mesh(new THREE.CylinderGeometry(16, 18, 12, 24), matBrass);
     brassHead.position.y = -4;
     baseGroup.add(brassHead);
 
-    const stopPin = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 9, 16), matSteel);
+    // Azimuth Physical Hard-Stop Pin (±180 deg)
+    const stopPin = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 9, 16), matChrome);
     stopPin.position.set(38, 22, 0);
     baseGroup.add(stopPin);
 
@@ -412,94 +616,193 @@
 
     const turretLower = new THREE.Mesh(new THREE.CylinderGeometry(52, 52, 20, 48), matAnodized);
     turretLower.position.y = 10;
+    turretLower.castShadow = true;
     azGroup.add(turretLower);
 
-    // Transparent Avionics Shell (shows ESP32 + TMC2209 + GPS inside!)
+    // Side Cable Gland Port (from OpenSCAD turret)
+    const cableGland = new THREE.Mesh(new THREE.CylinderGeometry(6, 6.5, 10, 16), matDarkAl);
+    cableGland.rotation.x = Math.PI / 2;
+    cableGland.position.set(0, 12, 52);
+    azGroup.add(cableGland);
+    const glandNut = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 4, 6), matBrass);
+    glandNut.rotation.x = Math.PI / 2;
+    glandNut.position.set(0, 12, 56);
+    azGroup.add(glandNut);
+
+    // Transparent Avionics Shell (shows ESP32-S3 + Dual TMC2209 + NEMA 17 inside)
     const avionicsShell = new THREE.Mesh(new THREE.CylinderGeometry(51.5, 51.5, 28, 48), matAcrylic);
     avionicsShell.position.y = 34;
     azGroup.add(avionicsShell);
 
+    // 4 vertical internal standoffs supporting the top cap
+    for (let i = 0; i < 4; i++) {
+      const a = (i * 90 + 45) * D2R;
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 28, 12), matBrass);
+      post.position.set(Math.cos(a) * 44, 34, Math.sin(a) * 44);
+      azGroup.add(post);
+    }
+
     const turretTopCap = new THREE.Mesh(new THREE.CylinderGeometry(52, 52, 6, 48), matAnodized);
     turretTopCap.position.y = 49;
+    turretTopCap.castShadow = true;
     azGroup.add(turretTopCap);
 
-    // Internal ESP32 PCB + TMC2209 heatsinks + Azimuth NEMA 17 + GT2 Pulley
-    const espPcb = new THREE.Mesh(new THREE.BoxGeometry(54, 3, 30), matPcb);
-    espPcb.position.set(0, 26, 18);
+    // 8x M3 Top-Cap Perimeter Screws
+    for (let i = 0; i < 8; i++) {
+      const a = (i * 45) * D2R;
+      const s = createSocketBolt(2.0, 1.8);
+      s.position.set(Math.cos(a) * 46, 52, Math.sin(a) * 46);
+      azGroup.add(s);
+    }
+
+    // Internal ESP32-S3 Carrier PCB + RF Shield Can + Dual TMC2209 Finned Heatsinks
+    const espPcb = new THREE.Mesh(new THREE.BoxGeometry(56, 2.5, 32), matPcb);
+    espPcb.position.set(0, 25, 19);
     azGroup.add(espPcb);
 
-    [-14, 14].forEach(x => {
-      const hs = new THREE.Mesh(new THREE.BoxGeometry(11, 8, 11), matAccent);
-      hs.position.set(x, 31, 18);
-      azGroup.add(hs);
+    const espShield = new THREE.Mesh(new THREE.BoxGeometry(16, 3.2, 18), matChrome);
+    espShield.position.set(0, 27.8, 19);
+    azGroup.add(espShield);
+
+    const statusLedMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
+    const statusLed = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 2.6), statusLedMat);
+    statusLed.position.set(0, 27.2, 31);
+    azGroup.add(statusLed);
+
+    [-18, 18].forEach(x => {
+      const driverPcb = new THREE.Mesh(new THREE.BoxGeometry(14, 1.6, 18), matDarkAl);
+      driverPcb.position.set(x, 27.2, 19);
+      azGroup.add(driverPcb);
+      // Finned blue aluminum heatsink
+      for (let f = -4; f <= 4; f += 2.6) {
+        const fin = new THREE.Mesh(new THREE.BoxGeometry(1.1, 7.5, 11), matAccent);
+        fin.position.set(x + f, 31.8, 19);
+        azGroup.add(fin);
+      }
     });
 
-    const azMotor = new THREE.Mesh(new THREE.BoxGeometry(42.3, 30, 42.3), matMotor);
-    azMotor.position.set(0, 24, -14);
+    // Internal Azimuth NEMA 17 Stepper + 60T GT2 Driven Pulley
+    const azMotor = createNema17(30);
+    azMotor.rotation.x = Math.PI / 2;
+    azMotor.position.set(0, 31, -15);
     azGroup.add(azMotor);
 
-    const azPulley = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 9, 32), matSteel);
+    const azPulley = createGT2Pulley(20, 8, matSteel, 28);
     azPulley.position.y = 8;
     azGroup.add(azPulley);
 
-    // u-blox GPS Puck on rear of turret
-    const gpsPuck = new THREE.Mesh(new THREE.CylinderGeometry(12, 13, 6, 24), matDarkAl);
-    gpsPuck.position.set(0, 54, -36);
-    azGroup.add(gpsPuck);
+    // u-blox NEO-M8N GPS Ceramic Patch Puck on rear of turret
+    const gpsBase = new THREE.Mesh(new THREE.CylinderGeometry(13, 14, 5, 24), matDarkAl);
+    gpsBase.position.set(0, 54.5, -36);
+    azGroup.add(gpsBase);
+    const gpsCeramic = new THREE.Mesh(new THREE.BoxGeometry(13, 2.2, 13), matPtfe);
+    gpsCeramic.position.set(0, 57.6, -36);
+    azGroup.add(gpsCeramic);
 
-    // --- 3D. Elevation U-Fork Yoke (Auto-adapts height between Helical & Yagi!) ---
+    // --- 3D. Elevation U-Fork Yoke (Auto-adapts height between Helical 82mm & Yagi 122mm) ---
     const yokeGroup = new THREE.Group();
     yokeGroup.position.y = 52;
     azGroup.add(yokeGroup);
 
     const yokeBar = new THREE.Mesh(new THREE.BoxGeometry(172, 12, 36), matAnodized);
     yokeBar.position.y = 6;
+    yokeBar.castShadow = true;
     yokeGroup.add(yokeBar);
 
-    // Build two dedicated arm assemblies so Helical (compact 82mm) and Yagi (tall 122mm) both look exact
+    // 4x M4 Yoke Crossbar Mounting Bolts
+    [[-34, -10], [34, -10], [-34, 10], [34, 10]].forEach(([x, z]) => {
+      const b = createSocketBolt(2.6, 2.6);
+      b.position.set(x, 12, z);
+      yokeGroup.add(b);
+    });
+
     function buildYokeArms(armH) {
       const g = new THREE.Group();
       [-1, 1].forEach(side => {
         const x = side * 79;
         const arm = new THREE.Mesh(new THREE.BoxGeometry(12, armH, 36), matAnodized);
         arm.position.set(x, armH / 2, 0);
+        arm.castShadow = true;
         g.add(arm);
+
+        // Gusset rib at inner arm base
+        const gusset = new THREE.Mesh(new THREE.BoxGeometry(10, 14, 24), matDarkAl);
+        gusset.position.set(side * 68, 16, 0);
+        g.add(gusset);
 
         const boss = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 12, 32), matAnodized);
         boss.rotation.z = Math.PI / 2;
         boss.position.set(x, armH, 0);
         g.add(boss);
 
-        const brg = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 13.5, 24), matSteel);
+        // 608ZZ Bearing Outer & Inner Rings
+        const brg = new THREE.Mesh(new THREE.CylinderGeometry(11, 11, 13.5, 24), matChrome);
         brg.rotation.z = Math.PI / 2;
         brg.position.set(x, armH, 0);
         g.add(brg);
+        const brgShield = new THREE.Mesh(new THREE.CylinderGeometry(9.2, 9.2, 14.0, 24), matSteel);
+        brgShield.rotation.z = Math.PI / 2;
+        brgShield.position.set(x, armH, 0);
+        g.add(brgShield);
       });
 
-      // External Elevation NEMA 17 Stepper + Mounting Flange
-      const elMotor = new THREE.Mesh(new THREE.BoxGeometry(34, 42.3, 42.3), matMotor);
-      elMotor.position.set(-102, armH - 30, 0);
+      // External Elevation NEMA 17 Stepper (Left Arm Outer Mount)
+      const elMotor = createNema17(34);
+      elMotor.rotation.y = Math.PI / 2;
+      elMotor.position.set(-103, armH - 34, 0);
       g.add(elMotor);
 
-      // 3:1 GT2 Driven Pulley + Motor Pinion + Drive Belt
-      const bigPulley = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 9, 32), matAccent);
+      // Aluminum Motor Spacer Plate
+      const spacer = new THREE.Mesh(new THREE.BoxGeometry(3.5, 44, 44), matSteel);
+      spacer.position.set(-85.5, armH - 34, 0);
+      g.add(spacer);
+
+      // 3:1 GT2 Flanged Driven Pulley (60T) + Motor Pinion (20T) + Dual-Run Belt + Tension Idler
+      const bigPulley = createGT2Pulley(19, 8.5, matAccent, 30);
       bigPulley.rotation.z = Math.PI / 2;
-      bigPulley.position.set(-90, armH, 0);
+      bigPulley.position.set(-91, armH, 0);
       g.add(bigPulley);
 
-      const smallPulley = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 9, 24), matSteel);
+      const smallPulley = createGT2Pulley(7.5, 8.5, matSteel, 14);
       smallPulley.rotation.z = Math.PI / 2;
-      smallPulley.position.set(-90, armH - 30, 0);
+      smallPulley.position.set(-91, armH - 34, 0);
       g.add(smallPulley);
 
-      const belt = new THREE.Mesh(new THREE.BoxGeometry(7, 38, 22), matRubber);
-      belt.position.set(-90, armH - 15, 0);
-      g.add(belt);
+      // Tensioner idler roller
+      const idler = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 8.5, 16), matChrome);
+      idler.rotation.z = Math.PI / 2;
+      idler.position.set(-91, armH - 18, 16.5);
+      g.add(idler);
 
-      // AS5600 Magnetic Encoder PCB on right arm
-      const encBoard = new THREE.Mesh(new THREE.BoxGeometry(3, 22, 22), matPcb);
-      encBoard.position.set(87, armH, 0);
+      // Left & right straight GT2 belt spans + top/bottom wrap arcs
+      [-1, 1].forEach(s => {
+        const span = new THREE.Mesh(new THREE.BoxGeometry(6.5, 36, 1.8), matRubber);
+        span.position.set(-91, armH - 17, s * 13.2);
+        span.rotation.x = s * -0.32;
+        g.add(span);
+      });
+      const topWrap = new THREE.Mesh(new THREE.TorusGeometry(19.5, 1.3, 8, 24, Math.PI), matRubber);
+      topWrap.rotation.y = Math.PI / 2;
+      topWrap.position.set(-91, armH, 0);
+      g.add(topWrap);
+
+      // AS5600 12-Bit Magnetic Absolute Encoder PCB + Standoffs + Diametric Magnet (Right Arm)
+      const encBoard = new THREE.Mesh(new THREE.BoxGeometry(2.4, 23, 23), matPcb);
+      encBoard.position.set(90, armH, 0);
       g.add(encBoard);
+      const encIc = new THREE.Mesh(new THREE.BoxGeometry(1.8, 5.5, 5.5), matDarkAl);
+      encIc.position.set(88.2, armH, 0);
+      g.add(encIc);
+      const encMag = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 3.0, 16), matChrome);
+      encMag.rotation.z = Math.PI / 2;
+      encMag.position.set(86.2, armH, 0);
+      g.add(encMag);
+      [[-8, -8], [8, -8], [-8, 8], [8, 8]].forEach(([dy, dz]) => {
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 6, 8), matBrass);
+        st.rotation.z = Math.PI / 2;
+        st.position.set(87.5, armH + dy, dz);
+        g.add(st);
+      });
 
       return g;
     }
@@ -514,7 +817,7 @@
     elGroup.position.y = 82;
     yokeGroup.add(elGroup);
 
-    const elAxle = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 190, 24), matSteel);
+    const elAxle = new THREE.Mesh(new THREE.CylinderGeometry(6, 6, 192, 24), matChrome);
     elAxle.rotation.z = Math.PI / 2;
     elGroup.add(elAxle);
 
@@ -524,8 +827,16 @@
     const helicalHead = new THREE.Group();
     elGroup.add(helicalHead);
 
+    // Trunnion saddle clamp ring around cup
+    const helClamp = new THREE.Mesh(new THREE.CylinderGeometry(58, 58, 16, 48, 1, true), matAnodized);
+    helClamp.rotation.x = Math.PI / 2;
+    helClamp.position.z = -8;
+    helicalHead.add(helClamp);
+
+    // Ø110 mm x 22 mm Aluminum Reflector Cup
     const cupBase = new THREE.Mesh(new THREE.CylinderGeometry(55, 55, 3, 48), matSteel);
     cupBase.rotation.x = Math.PI / 2;
+    cupBase.castShadow = true;
     helicalHead.add(cupBase);
 
     const cupRim = new THREE.Mesh(new THREE.CylinderGeometry(55, 55, 22, 48, 1, true), matSteel);
@@ -533,26 +844,50 @@
     cupRim.position.z = 11;
     helicalHead.add(cupRim);
 
+    const cupLip = new THREE.Mesh(new THREE.TorusGeometry(55, 1.4, 10, 48), matChrome);
+    cupLip.position.z = 22;
+    helicalHead.add(cupLip);
+
+    // Rear Counterweight & Shielded RF Pod with cooling ribs
     const helRearPod = new THREE.Mesh(new THREE.BoxGeometry(72, 64, 42), matAnodized);
     helRearPod.position.z = -23;
+    helRearPod.castShadow = true;
     helicalHead.add(helRearPod);
+    for (let ry = -22; ry <= 22; ry += 11) {
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(74, 2.5, 34), matDarkAl);
+      rib.position.set(0, ry, -23);
+      helicalHead.add(rib);
+    }
 
-    const helNConn = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 7.5, 16, 20), matBrass);
+    // N-Female 50 Ohm Brass Bulkhead Connector
+    const helNConn = new THREE.Mesh(new THREE.CylinderGeometry(7.8, 7.8, 16, 20), matBrass);
     helNConn.rotation.x = Math.PI / 2;
     helNConn.position.z = -9;
     helicalHead.add(helNConn);
+    const helNFlange = new THREE.Mesh(new THREE.BoxGeometry(22, 22, 2.5), matBrass);
+    helNFlange.position.z = -2.5;
+    helicalHead.add(helNFlange);
 
     // Helix Radiator Sub-Group (explodes along +Z)
     const helixCoilGroup = new THREE.Group();
     helicalHead.add(helixCoilGroup);
 
+    // Ø16 mm PTFE Dielectric Support Boom + Radial Spacers
     const ptfeBoom = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 210, 24), matPtfe);
     ptfeBoom.rotation.x = Math.PI / 2;
     ptfeBoom.position.z = 105;
     helixCoilGroup.add(ptfeBoom);
 
-    // Quarter-wave copper matching tab
-    const matchTab = new THREE.Mesh(new THREE.BoxGeometry(20, 2, 16), matCopper);
+    for (let s = 0; s < 3; s++) {
+      const spZ = 38 + s * 68;
+      const spoke = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 39, 10), matPtfe);
+      spoke.rotation.z = (s * 60) * D2R;
+      spoke.position.z = spZ;
+      helixCoilGroup.add(spoke);
+    }
+
+    // Quarter-wave copper impedance matching tab
+    const matchTab = new THREE.Mesh(new THREE.BoxGeometry(20, 2.2, 16), matCopper);
     matchTab.position.set(10, 0, 6);
     helixCoilGroup.add(matchTab);
 
@@ -563,26 +898,32 @@
         return new THREE.Vector3(this.r * Math.cos(a), this.r * Math.sin(a), this.z0 + t * this.turns * this.pitch);
       }
     }
-    const helixMesh = new THREE.Mesh(new THREE.TubeGeometry(new HelixCurve(19.5, 28.0, 7, 10.0), 220, 1.6, 10, false), matCopper);
+    const helixMesh = new THREE.Mesh(new THREE.TubeGeometry(new HelixCurve(19.5, 28.0, 7, 10.0), 260, 1.6, 12, false), matCopper);
+    helixMesh.castShadow = true;
     helixCoilGroup.add(helixMesh);
 
+    // Ø68 x 225 mm UV-ASA Protective Radome + Flanged Collar
     const helRadomeGroup = new THREE.Group();
     helicalHead.add(helRadomeGroup);
-    const helRadomeTube = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 225, 40, 1, true), matRadome);
+    const helRadomeCollar = new THREE.Mesh(new THREE.CylinderGeometry(37.5, 37.5, 8, 40), matDarkAl);
+    helRadomeCollar.rotation.x = Math.PI / 2;
+    helRadomeCollar.position.z = 6;
+    helRadomeGroup.add(helRadomeCollar);
+    const helRadomeTube = new THREE.Mesh(new THREE.CylinderGeometry(34, 34, 225, 44, 1, true), matRadome);
     helRadomeTube.rotation.x = Math.PI / 2;
     helRadomeTube.position.z = 114.5;
     helRadomeGroup.add(helRadomeTube);
-    const helRadomeCap = new THREE.Mesh(new THREE.SphereGeometry(34, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), matRadome);
+    const helRadomeCap = new THREE.Mesh(new THREE.SphereGeometry(34, 36, 18, 0, Math.PI * 2, 0, Math.PI / 2), matRadome);
     helRadomeCap.rotation.x = Math.PI / 2;
     helRadomeCap.position.z = 227;
     helRadomeGroup.add(helRadomeCap);
 
-    // Helical RF Beam Cone (41 deg HPBW + animated RHCP rings)
+    // Helical RF Beam Cone (41 deg HPBW + animated RHCP wave rings)
     const helBeamGroup = new THREE.Group();
     helBeamGroup.position.z = 225;
     helicalHead.add(helBeamGroup);
     const helCone = new THREE.Mesh(
-      new THREE.ConeGeometry(165, 460, 32, 1, true),
+      new THREE.ConeGeometry(168, 460, 36, 1, true),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.11, side: THREE.DoubleSide, depthWrite: false })
     );
     helCone.rotation.x = -Math.PI / 2;
@@ -590,13 +931,13 @@
     helBeamGroup.add(helCone);
 
     const helWaveRings = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(28, 1.3, 8, 32),
-        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.5 })
+        new THREE.TorusGeometry(28, 1.35, 8, 36),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.52 })
       );
       helBeamGroup.add(ring);
-      helWaveRings.push({ mesh: ring, phase: i / 4 });
+      helWaveRings.push({ mesh: ring, phase: i / 5 });
     }
 
     // =========================================================================
@@ -606,32 +947,58 @@
     elGroup.add(yagiHead);
 
     const yagiCradle = new THREE.Mesh(new THREE.BoxGeometry(34, 28, 28), matAnodized);
+    yagiCradle.castShadow = true;
     yagiHead.add(yagiCradle);
 
-    const polCollar = new THREE.Mesh(new THREE.CylinderGeometry(17.5, 17.5, 16, 32), matAccent);
+    // Blue 0°-90° Indexed V/H Polarization Collar + Locking Thumbscrew
+    const polCollar = new THREE.Mesh(new THREE.CylinderGeometry(18, 18, 16, 36), matAccent);
     polCollar.rotation.x = Math.PI / 2;
     yagiHead.add(polCollar);
+
+    for (let deg = 0; deg <= 90; deg += 45) {
+      const tick = new THREE.Mesh(new THREE.BoxGeometry(1.6, 3.5, 4), matChrome);
+      tick.position.set(Math.sin(deg * D2R) * 18.2, Math.cos(deg * D2R) * 18.2, 6);
+      tick.rotation.z = -deg * D2R;
+      yagiHead.add(tick);
+    }
+
+    const polThumbScrew = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 9, 16), matBrass);
+    polThumbScrew.position.set(0, 21.5, 0);
+    yagiHead.add(polThumbScrew);
 
     const yagiPolGroup = new THREE.Group();
     yagiHead.add(yagiPolGroup);
 
     const pivotZ = 78.0;
+    // 15x15x264 mm 6061-T6 Square Boom
     const yagiBoom = new THREE.Mesh(new THREE.BoxGeometry(15, 15, 264), matSteel);
     yagiBoom.position.z = -pivotZ - 14 + 132;
+    yagiBoom.castShadow = true;
     yagiPolGroup.add(yagiBoom);
 
-    const yagiRearPod = new THREE.Mesh(new THREE.BoxGeometry(38, 28, 18), matAnodized);
-    yagiRearPod.position.z = -pivotZ - 18;
+    // Boom front & rear end caps
+    [-pivotZ - 14, -pivotZ - 14 + 264].forEach(zPos => {
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(16, 16, 3), matDarkAl);
+      cap.position.z = zPos;
+      yagiPolGroup.add(cap);
+    });
+
+    // Rear Counterweight & Shielded LNA Pod behind Reflector
+    const yagiRearPod = new THREE.Mesh(new THREE.BoxGeometry(46, 34, 20), matAnodized);
+    yagiRearPod.position.z = -pivotZ - 24;
+    yagiRearPod.castShadow = true;
     yagiPolGroup.add(yagiRearPod);
 
-    const balunBox = new THREE.Mesh(new THREE.BoxGeometry(22, 22, 16), matDarkAl);
+    // Weatherproof Driven Element 4:1 Balun Feed Box & N-Female Bulkhead
+    const balunBox = new THREE.Mesh(new THREE.BoxGeometry(28, 26, 20), matDarkAl);
     balunBox.position.z = 24.5 - pivotZ;
     yagiPolGroup.add(balunBox);
 
-    const yagiNConn = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 14, 20), matBrass);
-    yagiNConn.position.set(0, -17, 24.5 - pivotZ);
+    const yagiNConn = new THREE.Mesh(new THREE.CylinderGeometry(6.8, 6.8, 14, 20), matBrass);
+    yagiNConn.position.set(0, -19.5, 24.5 - pivotZ);
     yagiPolGroup.add(yagiNConn);
 
+    // 9 Parasitic & Driven Elements (Exact OpenSCAD table)
     const yagiElemData = [
       { z: 0.0, len: 61.5, driven: false }, { z: 24.5, len: 57.5, driven: true },
       { z: 42.9, len: 53.0, driven: false }, { z: 67.4, len: 51.5, driven: false },
@@ -644,11 +1011,19 @@
       const g = new THREE.Group();
       const baseZ = e.z - pivotZ;
       g.position.z = baseZ;
-      g.add(new THREE.Mesh(new THREE.BoxGeometry(17.5, 17.5, 4.5), matDarkAl));
+
+      // Low-profile insulated UV-ASA mounting clip + M2.5 fastener
+      g.add(new THREE.Mesh(new THREE.BoxGeometry(17.8, 17.8, 4.8), matDarkAl));
+      const clipBolt = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 18.8, 8), matChrome);
+      clipBolt.rotation.z = Math.PI / 2;
+      g.add(clipBolt);
+
       if (e.driven) {
+        // Folded Dipole Driven Element
         [-3, 3].forEach(dz => {
           const rod = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, e.len, 16), matBrass);
           rod.position.z = dz;
+          rod.castShadow = true;
           g.add(rod);
         });
         [-1, 1].forEach(end => {
@@ -658,7 +1033,15 @@
           g.add(link);
         });
       } else {
-        g.add(new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, e.len, 16), matBrass));
+        const rod = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, e.len, 16), matBrass);
+        rod.castShadow = true;
+        g.add(rod);
+        // Chamfered brass end tips
+        [-1, 1].forEach(end => {
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(1.6, 10, 8), matBrass);
+          tip.position.y = end * (e.len / 2);
+          g.add(tip);
+        });
       }
       yagiPolGroup.add(g);
       yagiElemMeshes.push({ group: g, baseZ, idx });
@@ -677,7 +1060,7 @@
     yagiBeamGroup.position.z = 172;
     yagiPolGroup.add(yagiBeamGroup);
     const yagiCone = new THREE.Mesh(
-      new THREE.ConeGeometry(142, 480, 32, 1, true),
+      new THREE.ConeGeometry(142, 480, 36, 1, true),
       new THREE.MeshBasicMaterial({ color: 0xf59e0b, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false })
     );
     yagiCone.rotation.x = -Math.PI / 2;
@@ -685,8 +1068,8 @@
     yagiBeamGroup.add(yagiCone);
 
     const ePlaneRibbon = new THREE.Mesh(
-      new THREE.PlaneGeometry(4, 460),
-      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(5, 460),
+      new THREE.MeshBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.38, side: THREE.DoubleSide })
     );
     ePlaneRibbon.rotation.x = Math.PI / 2;
     ePlaneRibbon.rotation.z = Math.PI / 2;
@@ -710,17 +1093,30 @@
     uavCanopy.position.y = 6;
     uavGroup.add(uavCanopy);
 
+    // UAV Navigation LEDs (Red port / Green starboard)
+    const ledPort = new THREE.Mesh(new THREE.SphereGeometry(2.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    ledPort.position.set(-15, 2, 16);
+    uavGroup.add(ledPort);
+    const ledStbd = new THREE.Mesh(new THREE.SphereGeometry(2.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0x10b981 }));
+    ledStbd.position.set(15, 2, 16);
+    uavGroup.add(ledStbd);
+
     const uavRotors = [];
     [[-24, -24], [24, -24], [-24, 24], [24, 24]].forEach(([x, z]) => {
       const arm = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 34), matSteel);
       arm.position.set(x * 0.5, 0, z * 0.5);
       arm.rotation.y = Math.atan2(x, z);
       uavGroup.add(arm);
-      const rotor = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.2, 16), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45 }));
+      const rotor = new THREE.Mesh(new THREE.CylinderGeometry(13, 13, 1.2, 18), new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45 }));
       rotor.position.set(x, 5, z);
       uavGroup.add(rotor);
       uavRotors.push(rotor);
     });
+
+    // UAV Altitude Drop Line & Ground Shadow Ring
+    const uavDropGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, -180, 0)]);
+    const uavDropLine = new THREE.Line(uavDropGeo, new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.30 }));
+    missionEnvGroup.add(uavDropLine);
 
     // UAV Flight Path Ribbon (Figure-8 Corridor)
     const uavPathPts = [];
@@ -730,13 +1126,13 @@
     }
     const uavPathLine = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(uavPathPts),
-      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.35 })
+      new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.38 })
     );
     missionEnvGroup.add(uavPathLine);
 
-    // Predicted Aim Marker
+    // Predicted Aim Marker (300ms dead-reckoning lead)
     const predMarker = new THREE.Mesh(
-      new THREE.OctahedronGeometry(9, 0),
+      new THREE.OctahedronGeometry(10, 0),
       new THREE.MeshBasicMaterial({ color: 0x10b981, wireframe: true })
     );
     missionEnvGroup.add(predMarker);
@@ -759,7 +1155,7 @@
     const roverMast = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 48, 12), matSteel);
     roverMast.position.y = 44;
     roverGroup.add(roverMast);
-    const roverDipole = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 34, 12), matBrass);
+    const roverDipole = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.4, 38, 12), matBrass);
     roverDipole.position.y = 70;
     roverGroup.add(roverDipole);
 
@@ -773,16 +1169,51 @@
     const jamBeacon = new THREE.Mesh(new THREE.SphereGeometry(10, 16, 16), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
     jamBeacon.position.y = 146;
     jammerGroup.add(jamBeacon);
-    const jamPulse = new THREE.Mesh(
-      new THREE.RingGeometry(18, 23, 32),
-      new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide, transparent: true, opacity: 0.6 })
-    );
-    jamPulse.rotation.x = Math.PI / 2;
-    jamPulse.position.y = 146;
-    jammerGroup.add(jamPulse);
+    const jamPulses = [];
+    for (let i = 0; i < 2; i++) {
+      const jp = new THREE.Mesh(
+        new THREE.RingGeometry(18, 23, 32),
+        new THREE.MeshBasicMaterial({ color: 0xef4444, side: THREE.DoubleSide, transparent: true, opacity: 0.6 })
+      );
+      jp.rotation.x = Math.PI / 2;
+      jp.position.y = 146;
+      jammerGroup.add(jp);
+      jamPulses.push({ mesh: jp, phase: i * 0.5 });
+    }
 
     // =========================================================================
-    // 6. CAMERA ORBIT & STATE MANAGEMENT
+    // 6. INTERACTIVE 3D PROJECTED PART CALLOUTS
+    // =========================================================================
+    const partSpecs = {
+      tripod:  { short: '1. Tripod & Brass Head', title: '1. Field Tripod & Brass Dual-Thread Head', desc: 'Collapsible 3-leg anodized field tripod with flip-locks, spreader struts, and machined C360 brass 3/8"-16 & 1/4"-20 UNC mounting adapter.', cam: { theta: 0.95, phi: 1.38, radius: 420, target: [0, -55, 0] } },
+      turret:  { short: '2. ESP32 + TMC2209 Bay', title: '2. Azimuth Turret & Transparent Avionics Bay', desc: 'Houses 6808-2RS slewing bearing, internal NEMA 17 stepper + 60T GT2 pulley, ESP32-S3 MCU, dual finned TMC2209 drivers, and u-blox NEO-M8N GPS module.', cam: { theta: 0.72, phi: 1.22, radius: 290, target: [0, 42, 0] } },
+      yoke:    { short: '3. 3:1 GT2 & AS5600', title: '3. U-Fork Yoke, 3:1 GT2 Belt & AS5600 Encoder', desc: 'Anti-backlash 3:1 GT2 flanged toothed belt drive with tension idler on left arm and 12-bit AS5600 magnetic absolute encoder PCB on right arm.', cam: { theta: -0.95, phi: 1.18, radius: 320, target: [-15, 130, 0] } },
+      helical: { short: '4A. 7-Turn RHCP Helix', title: '4A. ARTEMIS-24H 7-Turn RHCP Helical Head', desc: 'Ø39.0 mm C110 copper helix (3.2 mm wire, 28.0 mm pitch) on Ø16 mm PTFE core inside Ø68×225 mm UV-ASA radome with Ø110×22 mm reflector cup & λ/4 matching tab.', cam: { theta: 1.05, phi: 1.12, radius: 370, target: [0, 160, 40] } },
+      yagi:    { short: '4B. 9-Elem Yagi + V/H Ring', title: '4B. ARTEMIS-24Y 9-Element Yagi-Uda Head', desc: '15×15×264 mm 6061-T6 square boom, folded dipole + 4:1 balun, 7 tapered brass directors (53.0→47.6 mm), blue 0°–90° indexed V/H collar, and tall 122 mm zenith U-fork.', cam: { theta: 1.08, phi: 1.10, radius: 410, target: [0, 190, 45] } }
+    };
+
+    const calloutAnchors = {
+      tripod:  { obj: tripodCollar,  offset: new THREE.Vector3(38, -22, 0) },
+      turret:  { obj: avionicsShell, offset: new THREE.Vector3(54, 4, 16) },
+      yoke:    { obj: yokeGroup,     offset: new THREE.Vector3(-98, 72, 0) },
+      helical: { obj: helixCoilGroup, offset: new THREE.Vector3(0, 38, 115) },
+      yagi:    { obj: yagiPolGroup,  offset: new THREE.Vector3(0, 38, 90) }
+    };
+
+    const calloutLayer = document.getElementById('callout-layer');
+    const calloutPins = {};
+    Object.keys(partSpecs).forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'callout-pin px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-900/90 hover:bg-blue-600 border border-blue-400/70 text-slate-100 shadow-md whitespace-nowrap backdrop-blur-sm';
+      btn.textContent = partSpecs[key].short;
+      btn.dataset.part = key;
+      btn.addEventListener('click', () => inspectPart(key, true));
+      calloutLayer.appendChild(btn);
+      calloutPins[key] = btn;
+    });
+
+    // =========================================================================
+    // 7. CAMERA ORBIT, STATE MANAGEMENT & ROLLING RF GRAPH
     // =========================================================================
     let camTheta = 0.85, camPhi = 1.15, camRadius = 640;
     const camTarget = new THREE.Vector3(0, 120, 40);
@@ -817,7 +1248,7 @@
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('wheel', e => {
       e.preventDefault();
-      camRadius = Math.max(180, Math.min(1800, camRadius + e.deltaY * 0.45));
+      camRadius = Math.max(160, Math.min(1800, camRadius + e.deltaY * 0.45));
       updateCamera();
     }, { passive: false });
 
@@ -828,8 +1259,101 @@
       simPaused: false, predOn: true,
       targetPol: 0,       // 0 = Vertical, 90 = Horizontal (for Yagi mission)
       rangeKm: 1.2,
-      beamOn: true, tripodOn: true, radomeMode: 0, wireframe: false
+      beamOn: true, tripodOn: true, radomeMode: 0, calloutsOn: true, wireframe: false
     };
+
+    // Rolling RF History Buffer (140 samples)
+    const GRAPH_LEN = 140;
+    const rfHistory = { primary: [], secondary: [] };
+    function resetGraphHistory() {
+      rfHistory.primary.length = 0;
+      rfHistory.secondary.length = 0;
+    }
+
+    const rfGraphCanvas = document.getElementById('rf-graph');
+    const rfCtx = rfGraphCanvas.getContext('2d');
+    function drawRFGraph() {
+      const rect = rfGraphCanvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const cw = Math.max(200, Math.floor(rect.width * dpr));
+      const ch = Math.max(90, Math.floor(rect.height * dpr));
+      if (rfGraphCanvas.width !== cw || rfGraphCanvas.height !== ch) {
+        rfGraphCanvas.width = cw;
+        rfGraphCanvas.height = ch;
+      }
+
+      const ctx = rfCtx;
+      ctx.clearRect(0, 0, cw, ch);
+      ctx.fillStyle = '#020617';
+      ctx.fillRect(0, 0, cw, ch);
+
+      const padL = 34 * dpr, padR = 8 * dpr, padT = 8 * dpr, padB = 10 * dpr;
+      const plotW = cw - padL - padR;
+      const plotH = ch - padT - padB;
+      const isHel = state.antenna === 'helical';
+
+      // Horizontal grid lines
+      const yMin = isHel ? -20 : -110;
+      const yMax = isHel ? 2 : -55;
+      const ticks = isHel ? [0, -5, -10, -15, -20] : [-60, -75, -95, -105];
+
+      ctx.font = `${9 * dpr}px "JetBrains Mono", monospace`;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ticks.forEach(val => {
+        const y = padT + (1 - (val - yMin) / (yMax - yMin)) * plotH;
+        ctx.strokeStyle = (!isHel && val === -95) ? 'rgba(239,68,68,0.45)' : 'rgba(51,65,85,0.55)';
+        ctx.lineWidth = 1 * dpr;
+        ctx.beginPath();
+        ctx.moveTo(padL, y);
+        ctx.lineTo(cw - padR, y);
+        ctx.stroke();
+        ctx.fillStyle = (!isHel && val === -95) ? '#f87171' : '#64748b';
+        ctx.fillText(val + '', padL - 4 * dpr, y);
+      });
+
+      function plotSeries(arr, color, dashed) {
+        if (arr.length < 2) return;
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.8 * dpr;
+        if (dashed) ctx.setLineDash([4 * dpr, 3 * dpr]);
+        ctx.beginPath();
+        for (let i = 0; i < arr.length; i++) {
+          const x = padL + (i / (GRAPH_LEN - 1)) * plotW;
+          const clamped = Math.max(yMin, Math.min(yMax, arr[i]));
+          const y = padT + (1 - (clamped - yMin) / (yMax - yMin)) * plotH;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      if (isHel) {
+        plotSeries(rfHistory.secondary, '#f59e0b', true);
+        plotSeries(rfHistory.primary, '#34d399', false);
+      } else {
+        plotSeries(rfHistory.secondary, '#ef4444', true);
+        plotSeries(rfHistory.primary, '#38bdf8', false);
+      }
+    }
+
+    function inspectPart(partKey, focusCam) {
+      const info = partSpecs[partKey];
+      if (!info) return;
+      document.getElementById('callout-title').textContent = info.title;
+      document.getElementById('callout-desc').textContent = info.desc;
+      document.getElementById('part-callout').classList.remove('hidden');
+      if (partKey === 'helical') { state.antenna = 'helical'; syncAntennaModeUI(); }
+      if (partKey === 'yagi') { state.antenna = 'yagi'; syncAntennaModeUI(); }
+      if (focusCam && info.cam) {
+        camTheta = info.cam.theta;
+        camPhi = info.cam.phi;
+        camRadius = info.cam.radius;
+        camTarget.set(info.cam.target[0], info.cam.target[1], info.cam.target[2]);
+        updateCamera();
+      }
+    }
 
     function syncAntennaModeUI() {
       const isHel = state.antenna === 'helical';
@@ -842,6 +1366,7 @@
 
       // Mission visuals
       uavGroup.visible = isMis && isHel;
+      uavDropLine.visible = isMis && isHel;
       uavPathLine.visible = isMis && isHel;
       predMarker.visible = isMis && isHel && state.predOn;
       yagiMissionGroup.visible = isMis && !isHel;
@@ -864,12 +1389,20 @@
         document.getElementById('mission-desc').textContent = 'Tracking 3D figure-8 UAV corridor with 300ms dead-reckoning. RHCP maintains 0 dB roll-fade.';
         document.getElementById('rf-special-lbl').textContent = 'UAV Roll / Cross-Pol Loss';
         document.getElementById('rf-compare-lbl').textContent = 'Linear Baseline Fade';
+        document.getElementById('graph-title').textContent = 'Cross-Pol Fade: RHCP vs Linear Baseline';
+        document.getElementById('graph-legend').textContent = '0 to -20 dB';
+        document.getElementById('leg-primary').textContent = 'ARTEMIS-24H RHCP (0 dB)';
+        document.getElementById('leg-secondary').textContent = 'Linear Baseline Roll Fade';
         document.getElementById('usage-insight').innerHTML = '<strong class="text-blue-300">Helical Usage Insight:</strong> As the UAV banks up to &plusmn;42&deg; in turns, a standard linear antenna loses 5&ndash;18 dB from polarization tilt. The 7-turn RHCP helix maintains 0 dB cross-pol loss while keeping elevation torque low.';
       } else {
         document.getElementById('mission-title').textContent = 'Mission: Long-Range Relay & Jammer Rejection';
         document.getElementById('mission-desc').textContent = 'Tracking mobile rover relay while rejecting off-axis 2.4 GHz ISM interference. Align V/H collar!';
         document.getElementById('rf-special-lbl').textContent = 'Collar Pol Mismatch Loss';
         document.getElementById('rf-compare-lbl').textContent = 'Off-Axis Jammer Rejection';
+        document.getElementById('graph-title').textContent = 'Link RSSI vs Off-Axis Jammer Floor';
+        document.getElementById('graph-legend').textContent = '-55 to -110 dBm';
+        document.getElementById('leg-primary').textContent = 'ARTEMIS-24Y Link RSSI';
+        document.getElementById('leg-secondary').textContent = 'Suppressed Jammer (-18.4 dB)';
         document.getElementById('usage-insight').innerHTML = '<strong class="text-amber-300">Yagi-Uda Usage Insight:</strong> Match the Yagi polarization collar (V/H) to the distant relay dipole to unlock full +13.0 dBi gain while the tight 38&deg; beam &amp; &gt;18 dB rear null suppress the red interference tower.';
       }
 
@@ -902,18 +1435,54 @@
       document.getElementById('hud-az').textContent = (state.az >= 0 ? '+' : '') + state.az.toFixed(1) + '\u00B0';
       document.getElementById('hud-el').textContent = '+' + state.el.toFixed(1) + '\u00B0';
       document.getElementById('hud-pol').textContent = state.antenna === 'helical' ? 'RHCP' : `${Math.round(state.pol)}\u00B0 (${state.pol < 30 ? 'V' : state.pol > 60 ? 'H' : 'Slant'})`;
+      document.getElementById('hud-zenith').classList.toggle('hidden', state.el <= 85);
       document.getElementById('val-az').textContent = (state.az >= 0 ? '+' : '') + Math.round(state.az) + '\u00B0';
       document.getElementById('val-el').textContent = '+' + Math.round(state.el) + '\u00B0';
       document.getElementById('val-pol').textContent = Math.round(state.pol) + '\u00B0';
       document.getElementById('val-explode').textContent = Math.round(state.explode) + '%';
     }
 
+    const tmpVec = new THREE.Vector3();
+    function updateCalloutPins() {
+      const show = state.calloutsOn;
+      calloutLayer.style.display = show ? 'block' : 'none';
+      if (!show) return;
+
+      const w = container.clientWidth || 640;
+      const h = container.clientHeight || 480;
+      const isHel = state.antenna === 'helical';
+
+      Object.keys(calloutAnchors).forEach(key => {
+        const pin = calloutPins[key];
+        const visibleForAntenna = (key === 'helical' && isHel) || (key === 'yagi' && !isHel) || (key === 'tripod' && state.tripodOn) || key === 'turret' || key === 'yoke';
+        if (!visibleForAntenna) {
+          pin.style.display = 'none';
+          return;
+        }
+        const anchor = calloutAnchors[key];
+        tmpVec.copy(anchor.offset);
+        anchor.obj.localToWorld(tmpVec);
+        tmpVec.project(camera);
+
+        if (tmpVec.z > 1) {
+          pin.style.display = 'none';
+          return;
+        }
+        const x = (tmpVec.x * 0.5 + 0.5) * w;
+        const y = (-tmpVec.y * 0.5 + 0.5) * h;
+        pin.style.display = (x > 20 && x < w - 20 && y > 48 && y < h - 54) ? 'block' : 'none';
+        pin.style.left = x + 'px';
+        pin.style.top = y + 'px';
+      });
+    }
+
     // Event Bindings
-    document.getElementById('sel-helical').addEventListener('click', () => { state.antenna = 'helical'; syncAntennaModeUI(); });
-    document.getElementById('sel-yagi').addEventListener('click', () => { state.antenna = 'yagi'; syncAntennaModeUI(); });
+    document.getElementById('sel-helical').addEventListener('click', () => { state.antenna = 'helical'; resetGraphHistory(); syncAntennaModeUI(); });
+    document.getElementById('sel-yagi').addEventListener('click', () => { state.antenna = 'yagi'; resetGraphHistory(); syncAntennaModeUI(); });
     document.getElementById('mode-mission').addEventListener('click', () => {
       state.mode = 'mission'; state.explode = 0; document.getElementById('slider-explode').value = 0;
       camTheta = 0.85; camPhi = 1.15; camRadius = 640; camTarget.set(0, 120, 40); updateCamera();
+      document.querySelector('[data-tab="live"]').click();
       syncAntennaModeUI();
     });
     document.getElementById('mode-cad').addEventListener('click', () => {
@@ -995,6 +1564,16 @@
       }
     });
 
+    const btnCallouts = document.getElementById('btn-callouts');
+    btnCallouts.addEventListener('click', () => {
+      state.calloutsOn = !state.calloutsOn;
+      btnCallouts.textContent = state.calloutsOn ? '3D Callouts: On' : '3D Callouts: Off';
+      btnCallouts.classList.toggle('bg-blue-600/90', state.calloutsOn);
+      btnCallouts.classList.toggle('border-blue-500', state.calloutsOn);
+      btnCallouts.classList.toggle('bg-slate-900/85', !state.calloutsOn);
+      btnCallouts.classList.toggle('border-slate-700', !state.calloutsOn);
+    });
+
     const btnWire = document.getElementById('btn-wireframe');
     btnWire.addEventListener('click', () => {
       state.wireframe = !state.wireframe;
@@ -1006,7 +1585,7 @@
       btn.addEventListener('click', () => {
         const v = btn.dataset.view;
         if (v === 'iso') { camTheta = 0.85; camPhi = 1.15; camRadius = 640; camTarget.set(0, 120, 40); }
-        else if (v === 'detail') { camTheta = 1.08; camPhi = 1.12; camRadius = 380; camTarget.set(0, 155, 20); }
+        else if (v === 'detail') { camTheta = 1.08; camPhi = 1.12; camRadius = 360; camTarget.set(0, 155, 20); }
         else if (v === 'side') { camTheta = Math.PI / 2; camPhi = 1.42; camRadius = 520; camTarget.set(0, 140, 20); }
         else if (v === 'top') { camTheta = 0.0; camPhi = 0.16; camRadius = 720; camTarget.set(0, 80, 100); }
         updateCamera();
@@ -1026,29 +1605,13 @@
       });
     });
 
-    const partSpecs = {
-      tripod: { title: '1. Field Tripod & Brass Dual-Thread Head', desc: 'Collapsible 3-leg anodized field tripod with spreader struts and machined C360 brass 3/8"-16 & 1/4"-20 UNC mounting adapter.' },
-      turret: { title: '2. Azimuth Turret & Transparent Avionics Bay', desc: 'Houses 6808-2RS slewing bearing, internal NEMA 17 stepper, ESP32-S3 MCU, dual TMC2209 drivers, and u-blox NEO-M8N GPS module.' },
-      yoke: { title: '3. U-Fork Yoke, 3:1 GT2 Belt & AS5600 Encoder', desc: 'Anti-backlash 3:1 GT2 toothed belt drive on left arm with 12-bit AS5600 magnetic absolute encoder PCB on right arm for closed-loop recovery.' },
-      helical: { title: '4A. ARTEMIS-24H 7-Turn RHCP Helical Head', desc: 'Ø39 mm C110 copper helix (28 mm pitch) on PTFE boom inside Ø68×225 mm UV-ASA radome with Ø110 mm aluminum reflector cup and rear counterweight.' },
-      yagi: { title: '4B. ARTEMIS-24Y 9-Element Yagi-Uda Head', desc: '15×15×264 mm square aluminum boom, folded dipole + 4:1 balun, 7 tapered brass directors, blue 0°–90° polarization collar, and tall 122 mm zenith U-fork.' }
-    };
-    const callout = document.getElementById('part-callout');
     document.querySelectorAll('.part-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const info = partSpecs[btn.dataset.part];
-        if (!info) return;
-        document.getElementById('callout-title').textContent = info.title;
-        document.getElementById('callout-desc').textContent = info.desc;
-        callout.classList.remove('hidden');
-        if (btn.dataset.part === 'helical') { state.antenna = 'helical'; syncAntennaModeUI(); }
-        if (btn.dataset.part === 'yagi') { state.antenna = 'yagi'; syncAntennaModeUI(); }
-      });
+      btn.addEventListener('click', () => inspectPart(btn.dataset.part, true));
     });
-    document.getElementById('btn-clear-part').addEventListener('click', () => callout.classList.add('hidden'));
+    document.getElementById('btn-clear-part').addEventListener('click', () => document.getElementById('part-callout').classList.add('hidden'));
 
     // =========================================================================
-    // 7. REAL-TIME SIMULATION LOOP (20 Hz RF MATH + 60 FPS RENDER)
+    // 8. REAL-TIME SIMULATION LOOP (20 Hz RF MATH + 60 FPS RENDER)
     // =========================================================================
     function resize() {
       const w = container.clientWidth || 640, h = container.clientHeight || 480;
@@ -1058,9 +1621,14 @@
     window.addEventListener('resize', resize);
 
     let simT = 0.6;
+    let frameCount = 0;
     function animate() {
       requestAnimationFrame(animate);
+      frameCount++;
       if (!state.simPaused) simT += 0.011;
+
+      // Subtle ESP32 heartbeat LED blink
+      statusLedMat.color.setHex((frameCount % 50) < 25 ? 0x10b981 : 0x064e3b);
 
       // Animate Helical RHCP wave rings
       helWaveRings.forEach(w => {
@@ -1068,13 +1636,16 @@
         w.mesh.position.z = prog * 420;
         const sc = 0.6 + prog * 4.8;
         w.mesh.scale.set(sc, sc, 1);
+        w.mesh.rotation.z = prog * Math.PI * 2;
         w.mesh.material.opacity = (1 - prog) * 0.48;
       });
 
-      // Animate Jammer pulse
-      const jp = (simT * 1.4) % 1;
-      jamPulse.scale.set(1 + jp * 4.5, 1 + jp * 4.5, 1);
-      jamPulse.material.opacity = (1 - jp) * 0.65;
+      // Animate Jammer dual pulses
+      jamPulses.forEach(p => {
+        const jp = (simT * 1.4 + p.phase) % 1;
+        p.mesh.scale.set(1 + jp * 4.8, 1 + jp * 4.8, 1);
+        p.mesh.material.opacity = (1 - jp) * 0.65;
+      });
 
       if (state.mode === 'mission') {
         const isHel = state.antenna === 'helical';
@@ -1092,6 +1663,11 @@
           targetVel = { e: vx, n: vz, u: vy };
 
           uavGroup.position.set(x, y, z);
+          const posAttr = uavDropGeo.attributes.position;
+          posAttr.setXYZ(0, x, y, z);
+          posAttr.setXYZ(1, x, -180, z);
+          posAttr.needsUpdate = true;
+
           const heading = Math.atan2(vx, vz);
           rollDeg = Math.sin(simT * 1.5) * 42;
           uavGroup.rotation.set(0, heading, rollDeg * D2R);
@@ -1109,15 +1685,16 @@
           roverGroup.rotation.y = Math.atan2(vx, vz);
         }
 
-        // Exact tracker_math.h dead-reckoning & pointing
+        // Exact tracker_math.h dead-reckoning & pointing with zenith azimuth hold > 85°
         const aimVec = state.predOn ? predict(targetPos, targetVel, 0.30) : targetPos;
         predMarker.position.set(aimVec.e, aimVec.u + 134, aimVec.n);
 
         const trueAim = aimAt(targetPos);
         const cmdAim = aimAt(aimVec);
 
-        // Smooth slew toward commanded aim
-        state.az += wrap180(cmdAim.az - state.az) * 0.12;
+        if (cmdAim.el <= 85.0) {
+          state.az += wrap180(cmdAim.az - state.az) * 0.12;
+        }
         state.el += (cmdAim.el - state.el) * 0.12;
         applyKinematics();
 
@@ -1151,8 +1728,10 @@
         document.getElementById('rf-gain').textContent = '+' + gain.toFixed(1) + ' dBi';
         document.getElementById('rf-point').textContent = `${errDeg.toFixed(1)}\u00B0 / -${pointLoss.toFixed(1)} dB`;
 
+        const linFade = -20 * Math.log10(Math.max(0.12, Math.abs(Math.cos(rollDeg * D2R))));
+        const jamFloor = -82 - 18.4 + Math.sin(simT * 2.7) * 0.8;
+
         if (isHel) {
-          const linFade = -20 * Math.log10(Math.max(0.12, Math.abs(Math.cos(rollDeg * D2R))));
           document.getElementById('rf-special-val').textContent = `${Math.abs(rollDeg).toFixed(0)}\u00B0 roll / 0.0 dB`;
           document.getElementById('rf-compare-val').textContent = `-${linFade.toFixed(1)} dB fade`;
         } else {
@@ -1177,8 +1756,27 @@
         const bar = document.getElementById('rssi-bar');
         bar.style.width = pct + '%';
         bar.className = `h-full transition-all duration-150 ${margin >= 10 ? 'bg-emerald-500' : margin >= 0 ? 'bg-amber-500' : 'bg-red-500'}`;
+
+        // Record rolling RF graph sample every 3 frames (~20 Hz)
+        if (!state.simPaused && frameCount % 3 === 0) {
+          if (isHel) {
+            // Amplify simulated roll tilt cross-pol loss on linear baseline for realistic ±42–78 deg combined attitude fade demonstration
+            const combinedLinFade = -Math.min(18.5, linFade + Math.pow(Math.abs(rollDeg) / 42, 2) * 9.5);
+            rfHistory.primary.push(0.0);
+            rfHistory.secondary.push(combinedLinFade);
+          } else {
+            rfHistory.primary.push(rssi);
+            rfHistory.secondary.push(jamFloor);
+          }
+          if (rfHistory.primary.length > GRAPH_LEN) {
+            rfHistory.primary.shift();
+            rfHistory.secondary.shift();
+          }
+          drawRFGraph();
+        }
       }
 
+      updateCalloutPins();
       renderer.render(scene, camera);
     }
 
